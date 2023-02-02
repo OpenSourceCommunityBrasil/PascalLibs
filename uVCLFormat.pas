@@ -18,8 +18,8 @@ uses
 
 type
   TFormato = (CNPJ, CPF, InscricaoEstadual, CNPJorCPF, Telefone, Personalizado,
-    Valor, ValorEx, Dinheiro, CEP, &Date, Peso, hhmm, Hora, CFOP, CEST, NCM,
-    Porcentagem, VeiculoT, VeiculoM);
+    Valor, Dinheiro, CEP, &Date, Peso, hhmm, Hora, CFOP, CEST, NCM, Porcentagem,
+    VeiculoT, VeiculoM);
 
   // estados da federação 0..26 = 27 ok
   // TODO: acrescentar código IBGE como índice padrão das siglas para facilidade de acesso
@@ -34,7 +34,7 @@ type
     function FormataIE(aCod: string; UF: TUF): string;
     function FormataHora(aStr: string): string;
     function FormataHoraCurta(aStr: string): string;
-    function FormataPeso(aStr: string): string;
+    function FormataPeso(aStr: string; aSeparador: boolean = false): string;
     function FormataValor(aStr: string; aSeparador: boolean = false): string;
   public
     function AlfaNumerico(aStr: string): string;
@@ -282,10 +282,14 @@ end;
 /// <summary>
 /// Formata o texto em um número com 3 casas decimais
 /// </summary>
-function TFormatHelper.FormataPeso(aStr: string): string;
+function TFormatHelper.FormataPeso(aStr: string;
+  aSeparador: boolean = false): string;
 begin
   try
-    Result := Format('%.3f', [SomenteNumero(aStr).ToInteger / 1000]);
+    if aSeparador then
+      Result := Format('%.3n', [SomenteNumero(aStr).ToInteger / 1000])
+    else
+      Result := Format('%.3f', [SomenteNumero(aStr).ToInteger / 1000]);
     // FormatFloat('#,##0.000', StrToFloat(aStr) / 1000);
   except
     Result := Format('%.3f', [0]);
@@ -329,13 +333,10 @@ begin
       Texto := Mask(ExtraArg, SomenteNumero(Texto));
 
     Valor:
-      Texto := FormataValor(Texto);
-
-    ValorEx:
       Texto := FormataValor(Texto, ExtraArg);
 
     Dinheiro:
-      if ExtraArg <> null then
+      if ExtraArg <> Null then
         Texto := FormataDinheiro(Texto, ExtraArg)
       else
         Texto := FormataDinheiro(Texto);
