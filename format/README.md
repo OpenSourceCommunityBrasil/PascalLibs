@@ -1,6 +1,6 @@
 Classes para auxiliar a formatação de valores em campos de texto e rótulos para o usuário. Testado no Delphi 10.3.3, 10.4.2 e 11.2, outras versões podem funcionar.
 
-#Format.VCL
+# Format.VCL
 Exemplo de uso:
 - Formatar um edit para mostrar valor monetário de acordo com o sistema operacional:
 ```Delphi
@@ -31,7 +31,7 @@ begin
 end;
 ```
 
-#Format.FMX
+# Format.FMX
 Exemplo de uso:
 - Formatar um edit para mostrar valor monetário de acordo com o sistema operacional:
 ```Delphi
