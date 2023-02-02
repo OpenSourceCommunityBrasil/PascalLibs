@@ -1,4 +1,4 @@
-unit uSQLiteConfig;
+unit Config.SQLite.FireDAC;
 
 interface
 
@@ -162,10 +162,10 @@ begin
     begin
       Close;
       SQL.Clear;
-      SQL.Add('CREATE TABLE "Config"(');
-      SQL.Add('  "CFG_ID" integer primary key');
-      SQL.Add(', "CFG_Key" varchar');
-      SQL.Add(', "CFG_Value" varchar');
+      SQL.Add('CREATE TABLE Config(');
+      SQL.Add('  CFG_ID integer primary key');
+      SQL.Add(', CFG_Key varchar');
+      SQL.Add(', CFG_Value varchar');
       SQL.Add(');');
       ExecSQL;
     end;

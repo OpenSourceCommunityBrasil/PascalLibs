@@ -1,0 +1,1 @@
+Classes de abstração da comunicação com banco de dados

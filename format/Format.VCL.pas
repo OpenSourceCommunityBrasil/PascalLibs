@@ -2,17 +2,16 @@
 {
   Unit Format
   Criação: 99 Coders (Heber Stein Mazutti - heber@99coders.com.br)
-  Adaptação: Mobius One
-  Versão: 1.7
+  Adaptação e melhorias: Mobius One
 }
 /// //////////////////////////////////////////////////////////////////////////
 
-unit uFMXFormat;
+unit Format.VCL;
 
 interface
 
 uses
-  FMX.Edit, FMX.Text, FMX.StdCtrls, FMX.Objects,
+  VCL.StdCtrls,
   System.Classes, System.MaskUtils, System.DateUtils, System.Math,
   System.SysUtils, System.SysConst;
 
@@ -24,7 +23,7 @@ type
   // estados da federação 0..26 = 27 ok
   // TODO: acrescentar código IBGE como índice padrão das siglas para facilidade de acesso
   TUF = (AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MG, MT, MS, PA, PB, PE, PI, PR,
-    RJ, RN, RO, RR, RS, SC, SE, SP, &TO, null);
+    RJ, RN, RO, RR, RS, SC, SE, SP, &TO, Null);
 
   TFormatHelper = class
   private
@@ -34,8 +33,8 @@ type
     function FormataIE(aCod: string; UF: TUF): string;
     function FormataHora(aStr: string): string;
     function FormataHoraCurta(aStr: string): string;
-    function FormataPeso(aStr: string; aSeparador: boolean = False): string;
-    function FormataValor(aStr: string; aSeparador: boolean = False): string;
+    function FormataPeso(aStr: string; aSeparador: boolean = false): string;
+    function FormataValor(aStr: string; aSeparador: boolean = false): string;
   public
     function AlfaNumerico(aStr: string): string;
     function Decimal(aStr: string): string; overload;
@@ -59,16 +58,6 @@ type
   end;
 
   TLabelHelper = class helper for TLabel
-  public
-    function AlfaNumerico: string;
-    function Decimal: string;
-    procedure Formatar(aFormato: TFormato; ExtraArg: Variant); overload;
-    procedure Formatar(aFormato: TFormato; UF: TUF); overload;
-    function Inteiro: string;
-    function SomenteNumero: string;
-  end;
-
-  TTextHelper = class helper for TText
   public
     function AlfaNumerico: string;
     function Decimal: string;
@@ -293,7 +282,7 @@ end;
 /// Formata o texto em um número com 3 casas decimais
 /// </summary>
 function TFormatHelper.FormataPeso(aStr: string;
-  aSeparador: boolean = False): string;
+  aSeparador: boolean = false): string;
 begin
   try
     if aSeparador then
@@ -346,7 +335,7 @@ begin
       Texto := FormataValor(Texto, ExtraArg);
 
     Dinheiro:
-      if ExtraArg <> null then
+      if ExtraArg <> Null then
         Texto := FormataDinheiro(Texto, ExtraArg)
       else
         Texto := FormataDinheiro(Texto);
@@ -482,101 +471,69 @@ end;
 function TEditHelper.AlfaNumerico: string;
 begin
   Result := Formato.AlfaNumerico(Self.Text);
-  Self.GoToTextEnd;
+  Self.SelStart := Length(Self.Text);
 end;
 
 function TEditHelper.Decimal: string;
 begin
   Result := Formato.Decimal(Self.Text, 2).ToString;
-  Self.GoToTextEnd;
+  Self.SelStart := Length(Self.Text);
 end;
 
 procedure TEditHelper.Formatar(aFormato: TFormato; UF: TUF);
 begin
   Self.Text := Formato.Formatar(aFormato, Self.Text, UF);
-  Self.GoToTextEnd;
+  Self.SelStart := Length(Self.Text);
 end;
 
 function TEditHelper.Inteiro: string;
 begin
   Result := Formato.Inteiro(Self.Text);
-  Self.GoToTextEnd;
+  Self.SelStart := Length(Self.Text);
 end;
 
 procedure TEditHelper.Formatar(aFormato: TFormato; ExtraArg: Variant);
 begin
   Self.Text := Formato.Formatar(aFormato, Self.Text, ExtraArg);
-  Self.GoToTextEnd;
+  Self.SelStart := Length(Self.Text);
 end;
 
 function TEditHelper.SomenteNumero: string;
 begin
   Result := Formato.SomenteNumero(Self.Text);
-  Self.GoToTextEnd;
-end;
-
-{ TTextHelper }
-
-function TTextHelper.AlfaNumerico: string;
-begin
-  Result := Formato.AlfaNumerico(Self.Text);
-end;
-
-function TTextHelper.Decimal: string;
-begin
-  Result := Formato.Decimal(Self.Text);
-end;
-
-procedure TTextHelper.Formatar(aFormato: TFormato; ExtraArg: Variant);
-begin
-  Self.Text := Formato.Formatar(aFormato, Self.Text, ExtraArg);
-end;
-
-procedure TTextHelper.Formatar(aFormato: TFormato; UF: TUF);
-begin
-  Self.Text := Formato.Formatar(aFormato, Self.Text, UF);
-end;
-
-function TTextHelper.Inteiro: string;
-begin
-  Result := Formato.Inteiro(Self.Text);
-end;
-
-function TTextHelper.SomenteNumero: string;
-begin
-  Result := Formato.SomenteNumero(Self.Text);
+  Self.SelStart := Length(Self.Text);
 end;
 
 { TLabelHelper }
 
 function TLabelHelper.AlfaNumerico: string;
 begin
-  Result := Formato.AlfaNumerico(Self.Text);
+  Result := Formato.AlfaNumerico(Self.Caption);
 end;
 
 function TLabelHelper.Decimal: string;
 begin
-  Result := Formato.Decimal(Self.Text);
+  Result := Formato.Decimal(Self.Caption);
 end;
 
 procedure TLabelHelper.Formatar(aFormato: TFormato; ExtraArg: Variant);
 begin
-  Self.Text := Formato.Formatar(aFormato, Self.Text, ExtraArg);
+  Self.Text := Formato.Formatar(aFormato, Self.Caption, ExtraArg);
 end;
 
 procedure TLabelHelper.Formatar(aFormato: TFormato; UF: TUF);
 begin
-  Self.Text := Formato.Formatar(aFormato, Self.Text, UF);
+  Self.Text := Formato.Formatar(aFormato, Self.Caption, UF);
 end;
 
 function TLabelHelper.Inteiro: string;
 begin
-  Result := Formato.Inteiro(Self.Text);
+  Result := Formato.Inteiro(Self.Caption);
 end;
 
 function TLabelHelper.SomenteNumero: string;
 begin
-  Result := Formato.SomenteNumero(Self.Text);
+  Result := Formato.SomenteNumero(Self.Caption);
 end;
 
 end.
