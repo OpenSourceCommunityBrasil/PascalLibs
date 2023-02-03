@@ -1,12 +1,12 @@
 /// //////////////////////////////////////////////////////////////////////////
 {
   Unit Format
-  CriaÁ„o: 99 Coders (Heber Stein Mazutti - heber@99coders.com.br)
-  AdaptaÁ„o e melhorias: Mobius One
+  Cria√ß√£o: 99 Coders (Heber Stein Mazutti - heber@99coders.com.br)
+  Adapta√ß√£o e melhorias: Mobius One
 }
 /// //////////////////////////////////////////////////////////////////////////
 
-unit Format.FMX;
+unit FMXFormat;
 
 interface
 
@@ -20,8 +20,8 @@ type
     Valor, Dinheiro, CEP, &Date, Peso, hhmm, Hora, CFOP, CEST, NCM, Porcentagem,
     VeiculoT, VeiculoM);
 
-  // estados da federaÁ„o 0..26 = 27 ok
-  // TODO: acrescentar cÛdigo IBGE como Ìndice padr„o das siglas para facilidade de acesso
+  // estados da federa√ß√£o 0..26 = 27 ok
+  // TODO: acrescentar c√≥digo IBGE como √≠ndice padr√£o das siglas para facilidade de acesso
   TUF = (AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MG, MT, MS, PA, PB, PE, PI, PR,
     RJ, RN, RO, RR, RS, SC, SE, SP, &TO, null);
 
@@ -85,7 +85,7 @@ implementation
 { TFormatHelper }
 
 /// <summary>
-/// Devolve letras e n˙meros bem como caracteres acentuados
+/// Devolve letras e n√∫meros bem como caracteres acentuados
 /// </summary>
 function TFormatHelper.AlfaNumerico(aStr: string): string;
 var
@@ -93,14 +93,14 @@ var
 begin
   Result := '';
   for x := 0 to pred(aStr.Length) do
-    if (aStr.Chars[x] In ['0' .. '9', 'a' .. 'z', 'A' .. 'Z', '„', '·', '‡',
-      '‚', 'È', 'Í', 'Ì', 'Û', 'Ù', 'ı', '˙', 'Á', '√', '¡', '¿', '¬', '…', ' ',
-      'Õ', '”', '’', '‘', '⁄', '«', ' ']) then
+    if (aStr.Chars[x] In ['0' .. '9', 'a' .. 'z', 'A' .. 'Z', '√£', '√°', '√†',
+      '√¢', '√©', '√™', '√≠', '√≥', '√¥', '√µ', '√∫', '√ß', '√É', '√Å', '√Ä', '√Ç', '√â', '√ä',
+      '√ç', '√ì', '√ï', '√î', '√ö', '√á', ' ']) then
       Result := Result + aStr.Chars[x];
 end;
 
 /// <summary>
-/// Devolve somente n˙meros mantendo a formataÁ„o com separador de milhar e decimais, removendo os demais caracteres
+/// Devolve somente n√∫meros mantendo a formata√ß√£o com separador de milhar e decimais, removendo os demais caracteres
 /// </summary>
 function TFormatHelper.Decimal(aStr: string): string;
 var
@@ -113,8 +113,8 @@ begin
 end;
 
 /// <summary>
-/// Devolve somente n˙meros mantendo a formataÁ„o com separador de milhar e decimais, removendo os demais caracteres
-/// Precis„o de decimais ajust·vel pelo par‚metro aPrecis„o. Valor padr„o: 2
+/// Devolve somente n√∫meros mantendo a formata√ß√£o com separador de milhar e decimais, removendo os demais caracteres
+/// Precis√£o de decimais ajust√°vel pelo par√¢metro aPrecis√£o. Valor padr√£o: 2
 /// </summary>
 function TFormatHelper.Decimal(aStr: string; aPrecisao: integer): Double;
 var
@@ -138,8 +138,8 @@ begin
 end;
 
 /// <summary>
-/// Formata o texto para datas no formato dia(2)/mÍs(2)/ano(4)
-/// Converte data em UNIX para o padr„o dd/mm/yyyy
+/// Formata o texto para datas no formato dia(2)/m√™s(2)/ano(4)
+/// Converte data em UNIX para o padr√£o dd/mm/yyyy
 /// </summary>
 function TFormatHelper.FormataData(aStr: string): string;
 begin
@@ -173,7 +173,7 @@ begin
 end;
 
 /// <summary>
-/// Formata o texto para Dinheiro com precis„o de decimais
+/// Formata o texto para Dinheiro com precis√£o de decimais
 /// </summary>
 function TFormatHelper.FormataDinheiro(aStr: string;
   aPrecisao: integer): string;
@@ -222,7 +222,7 @@ begin
 end;
 
 /// <summary>
-/// Formata o texto para inscriÁ„o estadual baseado no valor de 'UF'
+/// Formata o texto para inscri√ß√£o estadual baseado no valor de 'UF'
 /// </summary>
 function TFormatHelper.FormataIE(aCod: string; UF: TUF): string;
 var
@@ -289,7 +289,7 @@ begin
 end;
 
 /// <summary>
-/// Formata o texto em um n˙mero com 3 casas decimais
+/// Formata o texto em um n√∫mero com 3 casas decimais
 /// </summary>
 function TFormatHelper.FormataPeso(aStr: string): string;
 begin
@@ -309,8 +309,8 @@ end;
 
 /// <summary>
 /// Formata o valor do 'Texto' baseado no tipo de 'Formato' definido.
-/// 'Extra' serve para usar uma m·scara prÛpria quando utilizar o formato 'TFormato.Personalizado'
-/// 'UF' se tiver valor, formata o texto na inscriÁ„o estadual referente ‡quele estado
+/// 'Extra' serve para usar uma m√°scara pr√≥pria quando utilizar o formato 'TFormato.Personalizado'
+/// 'UF' se tiver valor, formata o texto na inscri√ß√£o estadual referente √†quele estado
 /// </summary>
 function TFormatHelper.Formatar(Formato: TFormato;
   Texto, Extra: string): string;
@@ -410,11 +410,11 @@ begin
 end;
 
 /// <summary>
-/// Define uma m·scara para ser utilizada para a formataÁ„o. Aceita os seguintes valores:
+/// Define uma m√°scara para ser utilizada para a formata√ß√£o. Aceita os seguintes valores:
 /// #: para qualquer caractere
-/// L: somente letras e vai devolver o texto em mai˙sculas
-/// l: somente letras e vai devolver o texto em min˙sculas
-/// 9: somente n˙mero
+/// L: somente letras e vai devolver o texto em mai√∫sculas
+/// l: somente letras e vai devolver o texto em min√∫sculas
+/// 9: somente n√∫mero
 /// </summary>
 function TFormatHelper.Mask(Mascara, aStr: string): string;
 var
@@ -457,7 +457,7 @@ begin
 end;
 
 /// <summary>
-/// Devolve somente os n˙meros contidos no texto
+/// Devolve somente os n√∫meros contidos no texto
 /// </summary>
 function TFormatHelper.SomenteNumero(aStr: string): string;
 var
