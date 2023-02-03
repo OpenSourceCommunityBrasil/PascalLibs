@@ -1,4 +1,4 @@
-/// //////////////////////////////////////////////////////////////////////////
+﻿/// //////////////////////////////////////////////////////////////////////////
 {
   Unit Format
   Criação: 99 Coders (Heber Stein Mazutti - heber@99coders.com.br)
@@ -33,16 +33,15 @@ type
     function FormataIE(aCod: string; UF: TUF): string;
     function FormataHora(aStr: string): string;
     function FormataHoraCurta(aStr: string): string;
-    function FormataPeso(aStr: string): string;
-    function FormataValor(aStr: string): string;
+    function FormataPeso(aStr: string; aSeparador: boolean = false): string;
+    function FormataValor(aStr: string; aSeparador: boolean = false): string;
   public
     function AlfaNumerico(aStr: string): string;
     function Decimal(aStr: string): string; overload;
     function Decimal(aStr: string; aPrecisao: integer): Double; overload;
-    function Formatar(Formato: TFormato; Texto: string; Extra: string = '')
+    function Formatar(Formato: TFormato; Texto: string; ExtraArg: Variant)
       : string; overload;
-    function Formatar(Formato: TFormato; Texto: string; UF: TUF)
-      : string; overload;
+    function Formatar(Formato: TFormato; Texto: string): string; overload;
     function Inteiro(aStr: string): string;
     function SomenteNumero(aStr: string): string;
   end;
@@ -51,8 +50,8 @@ type
   public
     function AlfaNumerico: string;
     function Decimal: string;
-    procedure Formatar(aFormato: TFormato; Extra: string = ''); overload;
-    procedure Formatar(aFormato: TFormato; UF: TUF); overload;
+    procedure Formatar(aFormato: TFormato); overload;
+    procedure Formatar(aFormato: TFormato; ExtraArg: Variant); overload;
     function Inteiro: string;
     function SomenteNumero: string;
   end;
@@ -61,8 +60,8 @@ type
   public
     function AlfaNumerico: string;
     function Decimal: string;
-    procedure Formatar(aFormato: TFormato; Extra: string = ''); overload;
-    procedure Formatar(aFormato: TFormato; UF: TUF); overload;
+    procedure Formatar(aFormato: TFormato); overload;
+    procedure Formatar(aFormato: TFormato; ExtraArg: Variant); overload;
     function Inteiro: string;
     function SomenteNumero: string;
   end;
@@ -154,7 +153,7 @@ begin
       else
         try
           aStr := Mask('##/##/####', aStr);
-          strtodate(aStr);
+          StrToDate(aStr);
           Result := aStr;
         except
           Result := '';
@@ -281,20 +280,23 @@ end;
 /// <summary>
 /// Formata o texto em um número com 3 casas decimais
 /// </summary>
-function TFormatHelper.FormataPeso(aStr: string): string;
+function TFormatHelper.FormataPeso(aStr: string;
+  aSeparador: boolean = false): string;
 begin
   try
-    Result := Format('%.3f', [SomenteNumero(aStr).ToInteger / 1000]);
+    if aSeparador then
+      Result := Format('%.3n', [SomenteNumero(aStr).ToInteger / 1000])
+    else
+      Result := Format('%.3f', [SomenteNumero(aStr).ToInteger / 1000]);
     // FormatFloat('#,##0.000', StrToFloat(aStr) / 1000);
   except
     Result := Format('%.3f', [0]);
   end;
 end;
 
-function TFormatHelper.Formatar(Formato: TFormato; Texto: string;
-  UF: TUF): string;
+function TFormatHelper.Formatar(Formato: TFormato; Texto: string): string;
 begin
-  Result := FormataIE(SomenteNumero(Texto), UF);
+  Result := Formatar(Formato, Texto, null);
 end;
 
 /// <summary>
@@ -302,10 +304,13 @@ end;
 /// 'Extra' serve para usar uma máscara própria quando utilizar o formato 'TFormato.Personalizado'
 /// 'UF' se tiver valor, formata o texto na inscrição estadual referente àquele estado
 /// </summary>
-function TFormatHelper.Formatar(Formato: TFormato;
-  Texto, Extra: string): string;
+function TFormatHelper.Formatar(Formato: TFormato; Texto: string;
+  ExtraArg: Variant): string;
 begin
   case Formato of
+    InscricaoEstadual:
+      Texto := FormataIE(SomenteNumero(Texto), ExtraArg);
+
     CNPJ:
       Texto := Mask('##.###.###/####-##', SomenteNumero(Texto));
 
@@ -325,14 +330,14 @@ begin
         Texto := Mask('(##) #####-####', SomenteNumero(Texto));
 
     Personalizado:
-      Texto := Mask(Extra, SomenteNumero(Texto));
+      Texto := Mask(ExtraArg, SomenteNumero(Texto));
 
     Valor:
-      Texto := FormataValor(Texto);
+      Texto := FormataValor(Texto, ExtraArg);
 
     Dinheiro:
-      if Extra <> '' then
-        Texto := FormataDinheiro(Texto, Extra.ToInteger)
+      if ExtraArg <> Null then
+        Texto := FormataDinheiro(Texto, ExtraArg)
       else
         Texto := FormataDinheiro(Texto);
 
@@ -376,10 +381,13 @@ end;
 /// <summary>
 /// Retorna valor formatado com 2 casas decimais
 /// </summary>
-function TFormatHelper.FormataValor(aStr: string): string;
+function TFormatHelper.FormataValor(aStr: string; aSeparador: boolean): string;
 begin
   try
-    Result := Format('%.2f', [StrToFloatDef(SomenteNumero(aStr), 0) / 100]);
+    if aSeparador then
+      Result := Format('%.2n', [StrToFloatDef(SomenteNumero(aStr), 0) / 100])
+    else
+      Result := Format('%.2f', [StrToFloatDef(SomenteNumero(aStr), 0) / 100]);
     // Result := FormatFloat('#,##0.00', Decimal(aStr));
   except
     Result := Format('%.2f', [0]);
@@ -473,9 +481,9 @@ begin
   Self.SelStart := Length(Self.Text);
 end;
 
-procedure TEditHelper.Formatar(aFormato: TFormato; UF: TUF);
+procedure TEditHelper.Formatar(aFormato: TFormato);
 begin
-  Self.Text := Formato.Formatar(aFormato, Self.Text, UF);
+  Self.Text := Formato.Formatar(aFormato, Self.Text, null);
   Self.SelStart := Length(Self.Text);
 end;
 
@@ -485,9 +493,9 @@ begin
   Self.SelStart := Length(Self.Text);
 end;
 
-procedure TEditHelper.Formatar(aFormato: TFormato; Extra: string);
+procedure TEditHelper.Formatar(aFormato: TFormato; ExtraArg: Variant);
 begin
-  Self.Text := Formato.Formatar(aFormato, Self.Text, Extra);
+  Self.Text := Formato.Formatar(aFormato, Self.Text, ExtraArg);
   Self.SelStart := Length(Self.Text);
 end;
 
@@ -509,14 +517,14 @@ begin
   Result := Formato.Decimal(Self.Caption);
 end;
 
-procedure TLabelHelper.Formatar(aFormato: TFormato; Extra: string);
+procedure TLabelHelper.Formatar(aFormato: TFormato);
 begin
-  Self.Text := Formato.Formatar(aFormato, Self.Caption, Extra);
+  Self.Text := Formato.Formatar(aFormato, Self.Caption, null);
 end;
 
-procedure TLabelHelper.Formatar(aFormato: TFormato; UF: TUF);
+procedure TLabelHelper.Formatar(aFormato: TFormato; ExtraArg: Variant);
 begin
-  Self.Text := Formato.Formatar(aFormato, Self.Caption, UF);
+  Self.Text := Formato.Formatar(aFormato, Self.Caption, ExtraArg);
 end;
 
 function TLabelHelper.Inteiro: string;
