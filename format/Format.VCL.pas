@@ -17,8 +17,8 @@ uses
 
 type
   TFormato = (CNPJ, CPF, InscricaoEstadual, CNPJorCPF, Telefone, Personalizado,
-    Valor, ValorEx, Dinheiro, CEP, &Date, Peso, hhmm, Hora, CFOP, CEST, NCM,
-    Porcentagem, VeiculoT, VeiculoM);
+    Valor, Dinheiro, CEP, &Date, Peso, hhmm, Hora, CFOP, CEST, NCM, Porcentagem,
+    VeiculoT, VeiculoM);
 
   // estados da federação 0..26 = 27 ok
   // TODO: acrescentar código IBGE como índice padrão das siglas para facilidade de acesso
@@ -34,12 +34,12 @@ type
     function FormataHora(aStr: string): string;
     function FormataHoraCurta(aStr: string): string;
     function FormataPeso(aStr: string): string;
-    function FormataValor(aStr: string; aSeparador: boolean = false): string;
+    function FormataValor(aStr: string): string;
   public
     function AlfaNumerico(aStr: string): string;
     function Decimal(aStr: string): string; overload;
     function Decimal(aStr: string; aPrecisao: integer): Double; overload;
-    function Formatar(Formato: TFormato; Texto: string; ExtraArg: Variant)
+    function Formatar(Formato: TFormato; Texto: string; Extra: string = '')
       : string; overload;
     function Formatar(Formato: TFormato; Texto: string; UF: TUF)
       : string; overload;
@@ -51,7 +51,7 @@ type
   public
     function AlfaNumerico: string;
     function Decimal: string;
-    procedure Formatar(aFormato: TFormato; ExtraArg: Variant); overload;
+    procedure Formatar(aFormato: TFormato; Extra: string = ''); overload;
     procedure Formatar(aFormato: TFormato; UF: TUF); overload;
     function Inteiro: string;
     function SomenteNumero: string;
@@ -61,7 +61,7 @@ type
   public
     function AlfaNumerico: string;
     function Decimal: string;
-    procedure Formatar(aFormato: TFormato; ExtraArg: Variant); overload;
+    procedure Formatar(aFormato: TFormato; Extra: string = ''); overload;
     procedure Formatar(aFormato: TFormato; UF: TUF); overload;
     function Inteiro: string;
     function SomenteNumero: string;
@@ -302,8 +302,8 @@ end;
 /// 'Extra' serve para usar uma máscara própria quando utilizar o formato 'TFormato.Personalizado'
 /// 'UF' se tiver valor, formata o texto na inscrição estadual referente àquele estado
 /// </summary>
-function TFormatHelper.Formatar(Formato: TFormato; Texto: string;
-  ExtraArg: Variant): string;
+function TFormatHelper.Formatar(Formato: TFormato;
+  Texto, Extra: string): string;
 begin
   case Formato of
     CNPJ:
@@ -325,17 +325,14 @@ begin
         Texto := Mask('(##) #####-####', SomenteNumero(Texto));
 
     Personalizado:
-      Texto := Mask(ExtraArg, SomenteNumero(Texto));
+      Texto := Mask(Extra, SomenteNumero(Texto));
 
     Valor:
       Texto := FormataValor(Texto);
 
-    ValorEx:
-      Texto := FormataValor(Texto, ExtraArg);
-
     Dinheiro:
-      if ExtraArg <> null then
-        Texto := FormataDinheiro(Texto, ExtraArg)
+      if Extra <> '' then
+        Texto := FormataDinheiro(Texto, Extra.ToInteger)
       else
         Texto := FormataDinheiro(Texto);
 
@@ -379,13 +376,10 @@ end;
 /// <summary>
 /// Retorna valor formatado com 2 casas decimais
 /// </summary>
-function TFormatHelper.FormataValor(aStr: string; aSeparador: boolean): string;
+function TFormatHelper.FormataValor(aStr: string): string;
 begin
   try
-    if aSeparador then
-      Result := Format('%.2n', [StrToFloatDef(SomenteNumero(aStr), 0) / 100])
-    else
-      Result := Format('%.2f', [StrToFloatDef(SomenteNumero(aStr), 0) / 100]);
+    Result := Format('%.2f', [StrToFloatDef(SomenteNumero(aStr), 0) / 100]);
     // Result := FormatFloat('#,##0.00', Decimal(aStr));
   except
     Result := Format('%.2f', [0]);
@@ -491,9 +485,9 @@ begin
   Self.SelStart := Length(Self.Text);
 end;
 
-procedure TEditHelper.Formatar(aFormato: TFormato; ExtraArg: Variant);
+procedure TEditHelper.Formatar(aFormato: TFormato; Extra: string);
 begin
-  Self.Text := Formato.Formatar(aFormato, Self.Text, ExtraArg);
+  Self.Text := Formato.Formatar(aFormato, Self.Text, Extra);
   Self.SelStart := Length(Self.Text);
 end;
 
@@ -515,9 +509,9 @@ begin
   Result := Formato.Decimal(Self.Caption);
 end;
 
-procedure TLabelHelper.Formatar(aFormato: TFormato; ExtraArg: Variant);
+procedure TLabelHelper.Formatar(aFormato: TFormato; Extra: string);
 begin
-  Self.Text := Formato.Formatar(aFormato, Self.Caption, ExtraArg);
+  Self.Text := Formato.Formatar(aFormato, Self.Caption, Extra);
 end;
 
 procedure TLabelHelper.Formatar(aFormato: TFormato; UF: TUF);
