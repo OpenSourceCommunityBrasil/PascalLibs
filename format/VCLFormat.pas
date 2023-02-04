@@ -18,7 +18,7 @@ uses
 type
   TFormato = (CNPJ, CPF, InscricaoEstadual, CNPJorCPF, Telefone, Personalizado,
     Valor, Dinheiro, CEP, &Date, Peso, hhmm, Hora, CFOP, CEST, NCM, Porcentagem,
-    VeiculoT, VeiculoM);
+    VeiculoT, VeiculoM, Bits);
 
   // estados da federação 0..26 = 27 ok
   // TODO: acrescentar código IBGE como índice padrão das siglas para facilidade de acesso
@@ -35,6 +35,7 @@ type
     function FormataHoraCurta(aStr: string): string;
     function FormataPeso(aStr: string; aSeparador: boolean = false): string;
     function FormataValor(aStr: string; aSeparador: boolean = false): string;
+    function FormataBits(aStr: string): string;
   public
     function AlfaNumerico(aStr: string): string;
     function Decimal(aStr: string): string; overload;
@@ -124,6 +125,44 @@ begin
   except
     Result := Format('%.' + aPrecisao.ToString + 'f', [0]).ToDouble;
   end;
+end;
+
+/// <summary>
+/// Formata o texto para bits de forma reduzida em 2 casas decimais
+/// </summary>
+function TFormatHelper.FormataBits(aStr: string): string;
+var
+  inputbyte: Double;
+
+const
+  KB = 1024;
+  MB = 1024 * KB;
+  GB = 1024 * MB;
+  TB = 1024.0 * GB;
+  PB = 1024.0 * TB;
+  HB = 1024.0 * PB;
+
+begin
+  if not aStr.IsEmpty then
+    try
+      inputbyte := StrToFloat(aStr);
+      if inputbyte >= HB then
+        Result := Format('%.2f HB', [inputbyte / HB])
+      else if inputbyte >= PB then
+        Result := Format('%.2f PB', [inputbyte / PB])
+      else if inputbyte >= TB then
+        Result := Format('%.2f TB', [inputbyte / TB])
+      else if inputbyte >= GB then
+        Result := Format('%.2f GB', [inputbyte / GB])
+      else if inputbyte >= MB then
+        Result := Format('%.2f MB', [inputbyte / MB])
+      else if inputbyte >= KB then
+        Result := Format('%.2f KB', [inputbyte / KB])
+      else
+        Result := Format('%.2f Bytes', [inputbyte]);
+    except
+      Result := '0 Bytes';
+    end;
 end;
 
 /// <summary>
@@ -296,7 +335,7 @@ end;
 
 function TFormatHelper.Formatar(Formato: TFormato; Texto: string): string;
 begin
-  Result := Formatar(Formato, Texto, null);
+  Result := Formatar(Formato, Texto, Null);
 end;
 
 /// <summary>
@@ -308,6 +347,9 @@ function TFormatHelper.Formatar(Formato: TFormato; Texto: string;
   ExtraArg: Variant): string;
 begin
   case Formato of
+    Bits:
+      Texto := FormataBits(Decimal(Texto));
+
     InscricaoEstadual:
       Texto := FormataIE(SomenteNumero(Texto), ExtraArg);
 
@@ -483,7 +525,7 @@ end;
 
 procedure TEditHelper.Formatar(aFormato: TFormato);
 begin
-  Self.Text := Formato.Formatar(aFormato, Self.Text, null);
+  Self.Text := Formato.Formatar(aFormato, Self.Text, Null);
   Self.SelStart := Length(Self.Text);
 end;
 
@@ -519,7 +561,7 @@ end;
 
 procedure TLabelHelper.Formatar(aFormato: TFormato);
 begin
-  Self.Text := Formato.Formatar(aFormato, Self.Caption, null);
+  Self.Text := Formato.Formatar(aFormato, Self.Caption, Null);
 end;
 
 procedure TLabelHelper.Formatar(aFormato: TFormato; ExtraArg: Variant);
