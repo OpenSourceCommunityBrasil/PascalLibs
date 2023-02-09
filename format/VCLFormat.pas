@@ -13,38 +13,43 @@ interface
 uses
   VCL.StdCtrls,
   System.Classes, System.MaskUtils, System.DateUtils, System.Math,
-  System.SysUtils, System.SysConst;
+  System.SysUtils, System.SysConst, System.TypInfo, System.StrUtils;
 
 type
-  TFormato = (CNPJ, CPF, InscricaoEstadual, CNPJorCPF, Telefone, Personalizado,
-    Valor, Dinheiro, CEP, &Date, Peso, hhmm, Hora, CFOP, CEST, NCM, Porcentagem,
-    VeiculoT, VeiculoM, Bits);
+  TFormato = (&Date, Bits, CEP, CEST, CFOP, CNH, CNPJ, CNPJorCPF, CPF, CREA,
+    CRM, Dinheiro, Hora, hhmm, InscricaoEstadual, NCM, OAB, Personalizado, Peso,
+    Porcentagem, Telefone, TituloEleitor, Valor, VeiculoMercosul,
+    VeiculoTradicional);
 
   // estados da federação 0..26 = 27 ok
   // TODO: acrescentar código IBGE como índice padrão das siglas para facilidade de acesso
   TUF = (AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MG, MT, MS, PA, PB, PE, PI, PR,
-    RJ, RN, RO, RR, RS, SC, SE, SP, &TO, Null);
+    RJ, RN, RO, RR, RS, SC, SE, SP, &TO);
 
   TFormatHelper = class
   private
-    function Mask(Mascara, aStr: string): string;
+    function FormataBits(aStr: string): string;
+    function FormataCRM(aStr: integer; UF: TUF): string;
     function FormataData(aStr: string): string;
     function FormataDinheiro(aStr: string; aPrecisao: integer = 2): string;
-    function FormataIE(aCod: string; UF: TUF): string;
     function FormataHora(aStr: string): string;
     function FormataHoraCurta(aStr: string): string;
+    function FormataIE(aCod: string; UF: TUF): string;
+    function FormataOAB(aStr: integer; UF: TUF): string;
     function FormataPeso(aStr: string; aSeparador: boolean = false): string;
     function FormataValor(aStr: string; aSeparador: boolean = false): string;
-    function FormataBits(aStr: string): string;
+    function Mask(Mascara, aStr: string): string;
   public
     function AlfaNumerico(aStr: string): string;
     function Decimal(aStr: string): string; overload;
     function Decimal(aStr: string; aPrecisao: integer): Double; overload;
+    function Formatar(Formato: TFormato; Texto: string): string; overload;
     function Formatar(Formato: TFormato; Texto: string; ExtraArg: Variant)
       : string; overload;
-    function Formatar(Formato: TFormato; Texto: string): string; overload;
     function Inteiro(aStr: string): string;
+    function Primeiros(aStr: string; aDigitos: integer): string;
     function SomenteNumero(aStr: string): string;
+    function Ultimos(aStr: string; aDigitos: integer): string;
   end;
 
   TEditHelper = class helper for TEdit
@@ -74,9 +79,8 @@ implementation
 
 { TFormatHelper }
 
-/// <summary>
-/// Devolve letras e números bem como caracteres acentuados
-/// </summary>
+/// <param name="aStr">O texto de entrada</param>
+/// <returns>Devolve letras e números bem como caracteres acentuados.</returns>
 function TFormatHelper.AlfaNumerico(aStr: string): string;
 var
   x: integer;
@@ -89,9 +93,6 @@ begin
       Result := Result + aStr.Chars[x];
 end;
 
-/// <summary>
-/// Devolve somente números mantendo a formatação com separador de milhar e decimais, removendo os demais caracteres
-/// </summary>
 function TFormatHelper.Decimal(aStr: string): string;
 var
   x: integer;
@@ -102,10 +103,10 @@ begin
       Result := Result + aStr.Chars[x];
 end;
 
-/// <summary>
+/// <returns>
 /// Devolve somente números mantendo a formatação com separador de milhar e decimais, removendo os demais caracteres
-/// Precisão de decimais ajustável pelo parâmetro aPrecisão. Valor padrão: 2
-/// </summary>
+/// </returns>
+/// <param name="aPrecisao"> Precisão de decimais ajustável. Valor padrão: 2 </param>
 function TFormatHelper.Decimal(aStr: string; aPrecisao: integer): Double;
 var
   x: integer;
@@ -127,9 +128,9 @@ begin
   end;
 end;
 
-/// <summary>
+/// <returns>
 /// Formata o texto para bits de forma reduzida em 2 casas decimais
-/// </summary>
+/// </returns>
 function TFormatHelper.FormataBits(aStr: string): string;
 var
   inputbyte: Double;
@@ -165,10 +166,27 @@ begin
     end;
 end;
 
-/// <summary>
+/// <returns>
+/// Formata o texto para código do conselho regional de medicina, no padrão
+/// CRM/<estado> + 6 dígitos
+/// </returns>
+function TFormatHelper.FormataCRM(aStr: integer; UF: TUF): string;
+begin
+  if not(aStr = 0) then
+    try
+      Result := Format('CRM/%s %.6d',
+        [GetEnumName(TypeInfo(TUF), ord(UF)), aStr]);
+      // Mask('CRM/LL ######', GetEnumName(TypeInfo(TUF), ord(UF)) +
+      // Primeiros(aStr));
+    except
+      Result := 'CRM/BR 000000';
+    end;
+end;
+
+/// <returns>
 /// Formata o texto para datas no formato dia(2)/mês(2)/ano(4)
 /// Converte data em UNIX para o padrão dd/mm/yyyy
-/// </summary>
+/// </returns>
 function TFormatHelper.FormataData(aStr: string): string;
 begin
   // -24871190400
@@ -188,10 +206,10 @@ begin
       aStr := Copy(aStr, 1, 8);
 
       if Length(aStr) < 8 then
-        Result := Mask('##/##/####', aStr)
+        Result := Mask('99/99/9999', aStr)
       else
         try
-          aStr := Mask('##/##/####', aStr);
+          aStr := Mask('99/99/9999', aStr);
           StrToDate(aStr);
           Result := aStr;
         except
@@ -200,9 +218,9 @@ begin
     end;
 end;
 
-/// <summary>
+/// <returns>
 /// Formata o texto para Dinheiro com precisão de decimais
-/// </summary>
+/// </returns>
 function TFormatHelper.FormataDinheiro(aStr: string;
   aPrecisao: integer): string;
 begin
@@ -214,9 +232,9 @@ begin
   end;
 end;
 
-/// <summary>
+/// <returns>
 /// Formata o texto para hora com horas e minutos
-/// </summary>
+/// </returns>
 function TFormatHelper.FormataHoraCurta(aStr: string): string;
 begin
   try
@@ -225,15 +243,15 @@ begin
       ((aStr.Length > 3) and (strtoint(Copy(aStr, 3, 2)) > 59)) then
       Result := ''
     else
-      Result := Mask('##:##', aStr);
+      Result := Mask('99:99', aStr);
   except
     Result := '';
   end;
 end;
 
-/// <summary>
+/// <returns>
 /// Formata o texto para hora com horas, minutos e segundos
-/// </summary>
+/// </returns>
 function TFormatHelper.FormataHora(aStr: string): string;
 begin
   try
@@ -243,15 +261,15 @@ begin
       ((aStr.Length > 5) and (strtoint(Copy(aStr, 5, 2)) > 59)) then
       Result := ''
     else
-      Result := Mask('##:##:##', aStr);
+      Result := Mask('99:99:99', aStr);
   except
     Result := '';
   end;
 end;
 
-/// <summary>
+/// <returns>
 /// Formata o texto para inscrição estadual baseado no valor de 'UF'
-/// </summary>
+/// </returns>
 function TFormatHelper.FormataIE(aCod: string; UF: TUF): string;
 var
   Mascara: string;
@@ -259,66 +277,81 @@ begin
   Mascara := '';
   case UF of
     AC:
-      Mascara := '##.###.###/###-##';
+      Mascara := '99.999.999/999-99';
     AL:
-      Mascara := '#########';
+      Mascara := '999999999';
     AM:
-      Mascara := '##.###.###-#';
+      Mascara := '99.999.999-9';
     AP:
-      Mascara := '#########';
+      Mascara := '999999999';
     BA:
-      Mascara := '######-##';
+      Mascara := '999999-99';
     CE:
-      Mascara := '########-#';
+      Mascara := '99999999-9';
     DF:
-      Mascara := '###########-##';
+      Mascara := '99999999999-99';
     ES:
-      Mascara := '#########';
+      Mascara := '999999999';
     GO:
-      Mascara := '##.###.###-#';
+      Mascara := '99.999.999-9';
     MA:
-      Mascara := '#########';
+      Mascara := '999999999';
     MG:
-      Mascara := '###.###.###/####';
+      Mascara := '999.999.999/9999';
     MT:
-      Mascara := '##########-#';
+      Mascara := '9999999999-9';
     MS:
-      Mascara := '#########';
+      Mascara := '999999999';
     PA:
-      Mascara := '##-######-#';
+      Mascara := '99-999999-9';
     PB:
-      Mascara := '########-#';
+      Mascara := '99999999-9';
     PE:
-      Mascara := '##.#.###.#######-#';
+      Mascara := '99.9.999.9999999-9';
     PI:
-      Mascara := '#########';
+      Mascara := '999999999';
     PR:
-      Mascara := '########-##';
+      Mascara := '99999999-99';
     RJ:
-      Mascara := '##.###.##-#';
+      Mascara := '99.999.99-9';
     RN:
-      Mascara := '##.###.###-#';
+      Mascara := '99.999.999-9';
     RO:
-      Mascara := '###.#####-#';
+      Mascara := '999.99999-9';
     RR:
-      Mascara := '########-#';
+      Mascara := '99999999-9';
     RS:
-      Mascara := '###/#######';
+      Mascara := '999/9999999';
     SC:
-      Mascara := '###.###.###';
+      Mascara := '999.999.999';
     SE:
-      Mascara := '#########-#';
+      Mascara := '999999999-9';
     SP:
-      Mascara := '###.###.###.###';
+      Mascara := '999.999.999.999';
     &TO:
-      Mascara := '###########';
+      Mascara := '99999999999';
   end;
   Result := Mask(Mascara, aCod);
 end;
 
-/// <summary>
+/// <returns>
+/// Formata o texto no padrão OAB: UF + 6 dígitos
+/// </returns>
+function TFormatHelper.FormataOAB(aStr: integer; UF: TUF): string;
+begin
+  if not(aStr = 0) then
+    try
+      Result := Format('%s%.6d', [GetEnumName(TypeInfo(TUF), ord(UF)), aStr]);
+      // Mask('CRM/LL ######', GetEnumName(TypeInfo(TUF), ord(UF)) +
+      // Primeiros(aStr));
+    except
+      Result := 'BR000000';
+    end;
+end;
+
+/// <returns>
 /// Formata o texto em um número com 3 casas decimais
-/// </summary>
+/// </returns>
 function TFormatHelper.FormataPeso(aStr: string;
   aSeparador: boolean = false): string;
 begin
@@ -327,7 +360,6 @@ begin
       Result := Format('%.3n', [SomenteNumero(aStr).ToInteger / 1000])
     else
       Result := Format('%.3f', [SomenteNumero(aStr).ToInteger / 1000]);
-    // FormatFloat('#,##0.000', StrToFloat(aStr) / 1000);
   except
     Result := Format('%.3f', [0]);
   end;
@@ -335,94 +367,108 @@ end;
 
 function TFormatHelper.Formatar(Formato: TFormato; Texto: string): string;
 begin
-  Result := Formatar(Formato, Texto, Null);
+  Result := Formatar(Formato, Texto, varNull);
 end;
 
-/// <summary>
-/// Formata o valor do 'Texto' baseado no tipo de 'Formato' definido.
-/// 'Extra' serve para usar uma máscara própria quando utilizar o formato 'TFormato.Personalizado'
-/// 'UF' se tiver valor, formata o texto na inscrição estadual referente àquele estado
-/// </summary>
+/// <returns> Formata o valor do "Texto" baseado no tipo de "Formato" definido.</returns>
+/// <param name="ExtraArg">serve para usar uma máscara própria quando utilizar o formato 'TFormato.Personalizado' ou
+/// se tiver valor, formata o texto na inscrição estadual referente àquele estado, ou
+/// é utilizado em alguns tipos de formatação para definir precisão de dígitos</param>
 function TFormatHelper.Formatar(Formato: TFormato; Texto: string;
   ExtraArg: Variant): string;
 begin
   case Formato of
+    &Date:
+      Texto := FormataData(SomenteNumero(Texto));
+
     Bits:
       Texto := FormataBits(Decimal(Texto));
 
-    InscricaoEstadual:
-      Texto := FormataIE(SomenteNumero(Texto), ExtraArg);
+    CEP:
+      Texto := Mask('99.999-999', SomenteNumero(Texto));
+
+    CEST:
+      Texto := Mask('99.999.99', SomenteNumero(Texto));
+
+    CFOP:
+      Texto := Mask('9.999', SomenteNumero(Texto));
+
+    CNH:
+      Texto := Mask('#########', AlfaNumerico(Texto));
 
     CNPJ:
-      Texto := Mask('##.###.###/####-##', SomenteNumero(Texto));
-
-    CPF:
-      Texto := Mask('###.###.###-##', SomenteNumero(Texto));
+      Texto := Mask('99.999.999/9999-99', SomenteNumero(Texto));
 
     CNPJorCPF:
       if Length(SomenteNumero(Texto)) <= 11 then
-        Texto := Mask('###.###.###-##', SomenteNumero(Texto))
+        Texto := Mask('999.999.999-99', SomenteNumero(Texto))
       else
-        Texto := Mask('##.###.###/####-##', SomenteNumero(Texto));
+        Texto := Mask('99.999.999/9999-99', SomenteNumero(Texto));
 
-    Telefone:
-      if Length(SomenteNumero(Texto)) <= 10 then
-        Texto := Mask('(##) ####-####', SomenteNumero(Texto))
-      else
-        Texto := Mask('(##) #####-####', SomenteNumero(Texto));
+    CPF:
+      Texto := Mask('999.999.999-99', SomenteNumero(Texto));
 
-    Personalizado:
-      Texto := Mask(ExtraArg, SomenteNumero(Texto));
+    CREA:
+      Texto := Mask('999999999-9', SomenteNumero(Texto));
 
-    Valor:
-      Texto := FormataValor(Texto, ExtraArg);
+    CRM:
+      Texto := FormataCRM(Ultimos(SomenteNumero(Texto), 6).ToInteger, ExtraArg);
 
     Dinheiro:
-      if ExtraArg <> Null then
+      if ExtraArg <> varNull then
         Texto := FormataDinheiro(Texto, ExtraArg)
       else
         Texto := FormataDinheiro(Texto);
 
-    CEP:
-      Texto := Mask('##.###-###', SomenteNumero(Texto));
-
-    &Date:
-      Texto := FormataData(SomenteNumero(Texto));
-
-    Peso:
-      Texto := FormataPeso(SomenteNumero(Texto));
-
-    CFOP:
-      Texto := Mask('#.###', SomenteNumero(Texto));
-
-    CEST:
-      Texto := Mask('##.###.##', SomenteNumero(Texto));
-
-    NCM:
-      Texto := Mask('####.##.##', SomenteNumero(Texto));
+    Hora:
+      Texto := FormataHora(SomenteNumero(Texto));
 
     hhmm:
       Texto := FormataHoraCurta(SomenteNumero(Texto));
 
-    Hora:
-      Texto := FormataHora(SomenteNumero(Texto));
+    InscricaoEstadual:
+      Texto := FormataIE(SomenteNumero(Texto), ExtraArg);
+
+    NCM:
+      Texto := Mask('9999.99.99', SomenteNumero(Texto));
+
+    OAB:
+      Texto := FormataOAB(Ultimos(SomenteNumero(Texto), 6).ToInteger, ExtraArg);
+
+    Personalizado:
+      Texto := Mask(ExtraArg, SomenteNumero(Texto));
+
+    Peso:
+      Texto := FormataPeso(SomenteNumero(Texto));
 
     Porcentagem:
       Texto := Format('%.2f %s', [Decimal(Texto, 2), '%']);
 
-    VeiculoT:
-      Texto := Mask('LLL-9999', AlfaNumerico(Texto));
+    Telefone:
+      if Length(SomenteNumero(Texto)) <= 10 then
+        Texto := Mask('(99) 9999-9999', SomenteNumero(Texto))
+      else
+        Texto := Mask('(99) 99999-9999', SomenteNumero(Texto));
 
-    VeiculoM:
+    TituloEleitor:
+      Texto := Mask('9999 9999 9999 99', SomenteNumero(Texto));
+
+    Valor:
+      Texto := FormataValor(Texto, ExtraArg);
+
+    VeiculoMercosul:
       Texto := Mask('#######', AlfaNumerico(Texto));
+
+    VeiculoTradicional:
+      Texto := Mask('LLL-9999', AlfaNumerico(Texto));
   end;
 
   Result := Texto;
 end;
 
-/// <summary>
+/// <returns>
 /// Retorna valor formatado com 2 casas decimais
-/// </summary>
+/// </returns>
 function TFormatHelper.FormataValor(aStr: string; aSeparador: boolean): string;
 begin
   try
@@ -430,15 +476,14 @@ begin
       Result := Format('%.2n', [StrToFloatDef(SomenteNumero(aStr), 0) / 100])
     else
       Result := Format('%.2f', [StrToFloatDef(SomenteNumero(aStr), 0) / 100]);
-    // Result := FormatFloat('#,##0.00', Decimal(aStr));
   except
     Result := Format('%.2f', [0]);
   end;
 end;
 
-/// <summary>
+/// <returns>
 /// Retorna valor formatado como inteiro positivo ou negativo
-/// </summary>
+/// </returns>
 function TFormatHelper.Inteiro(aStr: string): string;
 var
   x: integer;
@@ -449,56 +494,67 @@ begin
       Result := Result + aStr.Chars[x];
 end;
 
-/// <summary>
-/// Define uma máscara para ser utilizada para a formatação. Aceita os seguintes valores:
+/// <returns>
+/// Define uma "mascara" para ser utilizada para a formatação.
+/// </returns>
+/// <param name="Mascara">Aceita os seguintes valores:
 /// #: para qualquer caractere
 /// L: somente letras e vai devolver o texto em maiúsculas
 /// l: somente letras e vai devolver o texto em minúsculas
-/// 9: somente número
-/// </summary>
+/// 9: somente número </param>
 function TFormatHelper.Mask(Mascara, aStr: string): string;
 var
-  x, p: integer;
+  maskidx, textidx: integer;
 begin
-  p := 0;
+  textidx := 0;
   Result := '';
 
   if not aStr.IsEmpty then
-    for x := 0 to Length(Mascara) - 1 do
+    for maskidx := 0 to Length(Mascara) - 1 do
     begin
-      if Mascara.Chars[x] = '#' then
+      if Mascara.Chars[maskidx] = '#' then
       begin
-        Result := Result + aStr.Chars[p];
-        inc(p);
+        Result := Result + aStr.Chars[textidx];
+        inc(textidx);
       end
-      else if (Mascara.Chars[x] = 'L') and
-        (aStr.Chars[p] in ['a' .. 'z', 'A' .. 'Z']) then
+      else if (Mascara.Chars[maskidx] = 'L') and
+        (aStr.Chars[textidx] in ['a' .. 'z', 'A' .. 'Z']) then
       begin
-        Result := Result + UpperCase(aStr.Chars[p]);
-        inc(p);
+        Result := Result + UpperCase(aStr.Chars[textidx]);
+        inc(textidx);
       end
-      else if (Mascara.Chars[x] = 'l') and
-        (aStr.Chars[p] in ['a' .. 'z', 'A' .. 'Z']) then
+      else if (Mascara.Chars[maskidx] = 'l') and
+        (aStr.Chars[textidx] in ['a' .. 'z', 'A' .. 'Z']) then
       begin
-        Result := Result + LowerCase(aStr.Chars[p]);
-        inc(p);
+        Result := Result + LowerCase(aStr.Chars[textidx]);
+        inc(textidx);
       end
-      else if (Mascara.Chars[x] = '9') and (aStr.Chars[p] in ['0' .. '9']) then
+      else if (Mascara.Chars[maskidx] = '9') and
+        (aStr.Chars[textidx] in ['0' .. '9']) then
       begin
-        Result := Result + aStr.Chars[p];
-        inc(p);
+        Result := Result + aStr.Chars[textidx];
+        inc(textidx);
       end
-      else if not(Mascara.Chars[x] in ['#', 'L', 'l', '9']) then
-        Result := Result + Mascara.Chars[x];
+      else if not(Mascara.Chars[maskidx] in ['#', 'L', 'l', '9']) then
+        Result := Result + Mascara.Chars[maskidx];
 
-      if p = Length(aStr) then
+      if textidx = Length(aStr) then
         break;
     end;
 end;
 
-/// <summary>
+/// <returns>
+/// Devolve os primeiros 'aDigitos' contidos no texto
+/// </returns>
+function TFormatHelper.Primeiros(aStr: string; aDigitos: integer): string;
+begin
+  if not(aStr = '') then
+    Result := Copy(aStr, 1, aDigitos);
+end;
+
+/// <returns>
 /// Devolve somente os números contidos no texto
-/// </summary>
+/// </returns>
 function TFormatHelper.SomenteNumero(aStr: string): string;
 var
   x: integer;
@@ -507,6 +563,15 @@ begin
   for x := 0 to Length(aStr) - 1 do
     if (aStr.Chars[x] In ['0' .. '9']) then
       Result := Result + aStr.Chars[x];
+end;
+
+/// <returns>
+/// Devolve os últimos 'aDigitos' contidos no texto
+/// </returns>
+function TFormatHelper.Ultimos(aStr: string; aDigitos: integer): string;
+begin
+  if not(aStr = '') then
+    Result := RightStr(aStr, aDigitos);
 end;
 
 { TEditHelper }
@@ -525,7 +590,7 @@ end;
 
 procedure TEditHelper.Formatar(aFormato: TFormato);
 begin
-  Self.Text := Formato.Formatar(aFormato, Self.Text, Null);
+  Self.Text := Formato.Formatar(aFormato, Self.Text, varNull);
   Self.SelStart := Length(Self.Text);
 end;
 
@@ -561,7 +626,7 @@ end;
 
 procedure TLabelHelper.Formatar(aFormato: TFormato);
 begin
-  Self.Text := Formato.Formatar(aFormato, Self.Caption, Null);
+  Self.Text := Formato.Formatar(aFormato, Self.Caption, varNull);
 end;
 
 procedure TLabelHelper.Formatar(aFormato: TFormato; ExtraArg: Variant);
