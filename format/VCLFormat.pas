@@ -133,34 +133,42 @@ end;
 /// </returns>
 function TFormatHelper.FormataBits(aStr: string): string;
 var
-  inputbyte: Double;
+  inputbyte: Extended;
+  datasize: integer;
 
 const
-  KB = 1024;
-  MB = 1024 * KB;
-  GB = 1024 * MB;
-  TB = 1024.0 * GB;
-  PB = 1024.0 * TB;
-  HB = 1024.0 * PB;
+  kbsize = 1024;
 
 begin
   if not aStr.IsEmpty then
     try
-      inputbyte := StrToFloat(aStr);
-      if inputbyte >= HB then
-        Result := Format('%.2f HB', [inputbyte / HB])
-      else if inputbyte >= PB then
-        Result := Format('%.2f PB', [inputbyte / PB])
-      else if inputbyte >= TB then
-        Result := Format('%.2f TB', [inputbyte / TB])
-      else if inputbyte >= GB then
-        Result := Format('%.2f GB', [inputbyte / GB])
-      else if inputbyte >= MB then
-        Result := Format('%.2f MB', [inputbyte / MB])
-      else if inputbyte >= KB then
-        Result := Format('%.2f KB', [inputbyte / KB])
-      else
-        Result := Format('%.2f Bytes', [inputbyte]);
+      datasize := 0;
+      inputbyte := StrToUInt(aStr);
+      while inputbyte > kbsize do
+      begin
+        inputbyte := inputbyte / kbsize;
+        inc(datasize);
+      end;
+      case datasize of
+        0:
+          Format('%.2f Bytes', [inputbyte]);
+        1:
+          Format('%.2f KB', [inputbyte]);
+        2:
+          Format('%.2f MB', [inputbyte]);
+        3:
+          Format('%.2f GB', [inputbyte]);
+        4:
+          Format('%.2f TB', [inputbyte]);
+        5:
+          Format('%.2f PB', [inputbyte]);
+        6:
+          Format('%.2f EB', [inputbyte]);
+        // 7: Format('%.2f ZB', [inputbyte]);
+        // 8: Format('%.2f YB', [inputbyte]);
+        // 9: Format('%.2f RB', [inputbyte]);
+        // 10: Format('%.2f QB', [inputbyte]);
+      end;
     except
       Result := '0 Bytes';
     end;
