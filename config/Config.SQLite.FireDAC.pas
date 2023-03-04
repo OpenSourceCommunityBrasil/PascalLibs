@@ -3,15 +3,15 @@ unit Config.SQLite.FireDAC;
 interface
 
 uses
-{$IF CompilerVersion > 33.0}
+  {$IF CompilerVersion > 33.0}
   FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.Stan.ExprFuncs,
   FireDAC.Phys.SQLiteDef, FireDAC.Stan.Intf, FireDAC.Phys, FireDAC.Phys.SQLite,
-{$IFEND}
-{$IFDEF Android}
+  {$IFEND}
+  {$IFDEF Android}
   System.IOUtils,
-{$ENDIF}
+  {$ENDIF}
   FireDAC.Comp.Client, System.JSON, System.SysUtils
-  
+
     ;
 
 type
@@ -25,7 +25,7 @@ type
     destructor Destroy; override;
     function getValue(pKey: string): string;
     procedure UpdateConfig(aJSON: TJSONObject); overload;
-	procedure UpdateConfig(aKey, aValue: string); overload;
+    procedure UpdateConfig(aKey, aValue: string); overload;
     function LoadConfig: TJSONObject;
   end;
 
@@ -34,20 +34,20 @@ var
 
 implementation
 
-{ TCfg }
+{ TSQLiteConfig }
 
 constructor TSQLiteConfig.Create;
 begin
   FConn := TFDConnection.Create(nil);
   FConn.Params.Clear;
   FConn.DriverName := 'SQLite';
-{$IFDEF Android}
+  {$IFDEF Android}
   FConn.Params.Add('Database=' + TPath.Combine(TPath.GetDocumentsPath,
     'config.db'));
-{$ENDIF}
-{$IFDEF MSWINDOWS}
+  {$ENDIF}
+  {$IFDEF MSWINDOWS}
   FConn.Params.Add('Database=' + ExtractFilePath(ParamStr(0)) + 'config.db');
-{$ENDIF}
+  {$ENDIF}
   FConn.Params.Add('LockingMode=normal');
 
   FDataSet := TFDQuery.Create(nil);

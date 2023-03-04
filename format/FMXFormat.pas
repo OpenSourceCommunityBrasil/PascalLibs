@@ -161,19 +161,19 @@ begin
       end;
       case datasize of
         0:
-          Format('%.2f Bytes', [inputbyte]);
+          Result := Format('%.2f Bytes', [inputbyte]);
         1:
-          Format('%.2f KB', [inputbyte]);
+          Result := Format('%.2f KB', [inputbyte]);
         2:
-          Format('%.2f MB', [inputbyte]);
+          Result := Format('%.2f MB', [inputbyte]);
         3:
-          Format('%.2f GB', [inputbyte]);
+          Result := Format('%.2f GB', [inputbyte]);
         4:
-          Format('%.2f TB', [inputbyte]);
+          Result := Format('%.2f TB', [inputbyte]);
         5:
-          Format('%.2f PB', [inputbyte]);
+          Result := Format('%.2f PB', [inputbyte]);
         6:
-          Format('%.2f EB', [inputbyte]);
+          Result := Format('%.2f EB', [inputbyte]);
         // 7: Format('%.2f ZB', [inputbyte]);
         // 8: Format('%.2f YB', [inputbyte]);
         // 9: Format('%.2f RB', [inputbyte]);
