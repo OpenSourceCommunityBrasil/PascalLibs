@@ -1,5 +1,5 @@
 # Config
-### units de criação de banco de dados de valores de configuração no padrão chave:valor
+### units de criação de banco de dados de valores de configuração no padrão `chave:valor`
 
 ### Exemplo de uso para leitura:
 ```Delphi
