@@ -4,8 +4,7 @@ interface
 
 uses
   JSON, SysUtils,
-  ZConnection, ZDataset,
-  uSQLiteConfig;
+  ZConnection, ZDataset;
 
 type
   TDAC = class

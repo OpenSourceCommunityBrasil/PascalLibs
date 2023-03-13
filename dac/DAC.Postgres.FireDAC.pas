@@ -4,8 +4,7 @@ interface
 
 uses
   JSON, SysUtils,
-  FireDAC.Comp.Client, FireDAC.Phys.PG,
-  uSQLiteConfig;
+  FireDAC.Comp.Client, FireDAC.Phys.PG;
 
 type
   TDAC = class

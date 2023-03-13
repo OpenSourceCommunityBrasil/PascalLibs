@@ -3,14 +3,13 @@ unit DAC.Firebird.FireDAC;
 interface
 
 uses
-  System.Classes, System.SysUtils, System.JSON,
-  FireDAC.Comp.Client,
-
-    ;
+  JSON, SysUtils,
+  FireDAC.Comp.Client, FireDAC.Phys.FB;
 
 type
   TDAC = class
   private
+    FDriver: TFDPhysFBDriverLink;
     FConnection: TFDConnection;
     FQuery: TFDQuery;
   public
@@ -23,35 +22,47 @@ type
 implementation
 
 constructor TDAC.Create(aJSON: TJSONObject);
+var
+  DefaultDir: string;
 begin
+  if DirectoryExists(ExtractFileDir(ParamStr(0)) + '\lib\') then
+    DefaultDir := ExtractFileDir(ParamStr(0)) + '\lib\'
+  else
+    DefaultDir := ExtractFileDir(ParamStr(0));
+
+  FDriver := TFDPhysFBDriverLink.Create(nil);
+  FDriver.DriverID := 'FB';
+  FDriver.VendorLib := DefaultDir + 'fbclient.dll';
+
   FConnection := TFDConnection.Create(nil);
-  FConnection.LoginPrompt := false;
-  FConnection.DriverName := 'FB';
-
-  if aJSON.GetValue('dbserver') <> nil then
-    FConnection.Params.Add('Server=' + aJSON.GetValue('dbserver').Value);
-
-  FConnection.Params.Add('DriverID=FB');
-  FConnection.Params.Add('User_Name=' + aJSON.GetValue('dbuser').Value);
-  FConnection.Params.Add('Password=' + aJSON.GetValue('dbpassword').Value);
-
-  if aJSON.GetValue('dbport') <> nil then
-    FConnection.Params.Add('Port=' + aJSON.GetValue('dbport').Value);
-
-  if aJSON.GetValue('banco') <> nil then
-    FConnection.Params.Add('Database=' + aJSON.GetValue('banco').Value);
-
-  FQuery := TFDQuery.Create(nil);
-  FQuery.Connection := FConnection;
-  FQuery.ResourceOptions.SilentMode := true;
+  try
+    with FConnection do
+    begin
+      LoginPrompt := false;
+      Params.Add('DriverID=FB');
+      Params.Add('Server=' + aJSON.GetValue('dbserver').Value);
+      Params.Add('User_Name=' + aJSON.GetValue('dbuser').Value);
+      Params.Add('Password=' + aJSON.GetValue('dbpassword').Value);
+      Params.Add('Port=' + aJSON.GetValue('dbport').Value);
+      if aJSON.GetValue('banco') <> nil then
+        Params.Add('Database=' + aJSON.GetValue('banco').Value);
+      FQuery := TFDQuery.Create(nil);
+      FQuery.Connection := FConnection;
+      FQuery.ResourceOptions.SilentMode := true;
+    end;
+  except
+    // log
+  end;
 end;
 
 destructor TDAC.Destroy;
 begin
-  if Assigned(FConnection) then
-    FConnection.Free;
-  if Assigned(FQuery) then
+  if FDriver <> nil then
+    FDriver.Free;
+  if FQuery <> nil then
     FQuery.Free;
+  if FConnection <> nil then
+    FConnection.Free;
   inherited;
 end;
 
