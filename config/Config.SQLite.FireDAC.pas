@@ -52,6 +52,7 @@ begin
 
   FDataSet := TFDQuery.Create(nil);
   FDataSet.Connection := FConn;
+  FDataSet.ResourceOptions.SilentMode := true;
 
   Validate;
 end;
