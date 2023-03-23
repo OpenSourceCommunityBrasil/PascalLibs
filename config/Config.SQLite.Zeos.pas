@@ -14,7 +14,8 @@ type
   private
     FConn: TZConnection;
     FDataSet: TZQuery;
-    procedure Validate;
+    function Validate: boolean;
+    function GetDefaultDir(aFileName: string): string;
   public
     constructor Create;
     destructor Destroy; override;
@@ -43,7 +44,10 @@ begin
   FDataSet := TZQuery.Create(nil);
   FDataSet.Connection := FConn;
 
-  Validate;
+  FConn.LibraryLocation := GetDefaultDir('sqlite3.dll');
+  if not Validate then
+    raise Exception.Create
+      ('sqlite3.dll precisa estar na raiz do projeto ou na pasta /lib');
 end;
 
 destructor TSQLiteConfig.Destroy;
@@ -51,6 +55,17 @@ begin
   FDataSet.Free;
   FConn.Free;
   inherited;
+end;
+
+function TSQLiteConfig.GetDefaultDir(aFileName: string): string;
+var
+  DefaultDir: string;
+begin
+  DefaultDir := ExtractFileDir(ParamStr(0));
+  if FileExists(DefaultDir + '\lib\' + aFileName) then
+    Result := DefaultDir + '\lib\' + aFileName
+  else
+    Result := DefaultDir + aFileName;
 end;
 
 function TSQLiteConfig.getValue(pKey: string): string;
@@ -142,24 +157,30 @@ begin
   end;
 end;
 
-procedure TSQLiteConfig.Validate;
+function TSQLiteConfig.Validate: boolean;
 begin
-  with FDataSet do
-  begin
-    Close;
-    SQL.Text := 'PRAGMA table_info("Config")';
-    Open;
-    if isEmpty then
+  Result := false;
+  try
+    with FDataSet do
     begin
       Close;
-      SQL.Clear;
-      SQL.Add('CREATE TABLE Config(');
-      SQL.Add('  CFG_ID integer primary key');
-      SQL.Add(', CFG_Key varchar');
-      SQL.Add(', CFG_Value varchar');
-      SQL.Add(');');
-      ExecSQL;
+      SQL.Text := 'PRAGMA table_info("Config")';
+      Open;
+      if isEmpty then
+      begin
+        Close;
+        SQL.Clear;
+        SQL.Add('CREATE TABLE Config(');
+        SQL.Add('  CFG_ID integer primary key');
+        SQL.Add(', CFG_Key varchar');
+        SQL.Add(', CFG_Value varchar');
+        SQL.Add(');');
+        ExecSQL;
+      end;
     end;
+    Result := true;
+  except
+    Result := false;
   end;
 end;
 

@@ -19,7 +19,9 @@ type
   private
     FConn: TFDConnection;
     FDataSet: TFDQuery;
-    procedure Validate;
+    FDriver: TFDPhysSQLiteDriverLink;
+    function Validate: boolean;
+    function GetDefaultDir(aFileName: string): string;
   public
     constructor Create;
     destructor Destroy; override;
@@ -38,9 +40,14 @@ implementation
 
 constructor TSQLiteConfig.Create;
 begin
+  {$IFDEF MSWINDOWS} // android já possui a dll instalada
+  FDriver := TFDPhysSQLiteDriverLink.Create(nil);
+  FDriver.DriverID := 'SQLite';
+  FDriver.VendorLib := GetDefaultDir('sqlite3.dll');
+  {$ENDIF}
   FConn := TFDConnection.Create(nil);
   FConn.Params.Clear;
-  FConn.DriverName := 'SQLite';
+  FConn.Params.Add('DriverID=SQLite');
   {$IFDEF Android}
   FConn.Params.Add('Database=' + TPath.Combine(TPath.GetDocumentsPath,
     'config.db'));
@@ -53,14 +60,30 @@ begin
   FDataSet := TFDQuery.Create(nil);
   FDataSet.Connection := FConn;
 
-  Validate;
+  if not Validate then
+    raise Exception.Create
+      ('sqlite3.dll precisa estar na raiz do projeto ou na pasta /lib');
 end;
 
 destructor TSQLiteConfig.Destroy;
 begin
   FDataSet.Free;
   FConn.Free;
+  {$IFDEF MSWINDOWS}
+  FDriver.Free;
+  {$ENDIF}
   inherited;
+end;
+
+function TSQLiteConfig.GetDefaultDir(aFileName: string): string;
+var
+  DefaultDir: string;
+begin
+  DefaultDir := ExtractFileDir(ParamStr(0));
+  if FileExists(DefaultDir + '\lib\' + aFileName) then
+    Result := DefaultDir + '\lib\' + aFileName
+  else
+    Result := DefaultDir + aFileName;
 end;
 
 function TSQLiteConfig.getValue(pKey: string): string;
@@ -152,23 +175,29 @@ begin
   end;
 end;
 
-procedure TSQLiteConfig.Validate;
+function TSQLiteConfig.Validate: boolean;
 begin
-  with FDataSet do
-  begin
-    Close;
-    Open('PRAGMA table_info("Config")');
-    if isEmpty then
+  Result := false;
+  try
+    with FDataSet do
     begin
       Close;
-      SQL.Clear;
-      SQL.Add('CREATE TABLE Config(');
-      SQL.Add('  CFG_ID integer primary key');
-      SQL.Add(', CFG_Key varchar');
-      SQL.Add(', CFG_Value varchar');
-      SQL.Add(');');
-      ExecSQL;
+      Open('PRAGMA table_info("Config")');
+      if isEmpty then
+      begin
+        Close;
+        SQL.Clear;
+        SQL.Add('CREATE TABLE Config(');
+        SQL.Add('  CFG_ID integer primary key');
+        SQL.Add(', CFG_Key varchar');
+        SQL.Add(', CFG_Value varchar');
+        SQL.Add(');');
+        ExecSQL;
+      end;
     end;
+    Result := true;
+  except
+    Result := false;
   end;
 end;
 
