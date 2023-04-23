@@ -2,6 +2,11 @@ unit Config.SQLite.FireDAC;
 
 interface
 
+{$IF Declared(FireMonkeyVersion) or Defined(FRAMEWORK_FMX)
+or Declared(FMX.Types.TFmxObject) or Defined(LINUX64)}
+{$DEFINE HAS_FMX}
+{$ENDIF}
+
 uses
   {$IF CompilerVersion > 33.0}
   FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.Stan.ExprFuncs,
@@ -12,6 +17,12 @@ uses
   {$ENDIF}
   FireDAC.Comp.Client, System.JSON, System.SysUtils
 
+  {$IFDEF HAS_FMX}
+    , FMX.Forms, FMX.Edit, FMX.ComboEdit, FMX.StdCtrls, FMX.ExtCtrls,
+  FMX.Controls, FMX.ListBox, FMX.DateTimeCtrls
+  {$ELSE}
+    , VCL.Forms, VCL.StdCtrls, VCL.ExtCtrls, VCL.ValEdit
+  {$IFEND}
     ;
 
 type
@@ -29,6 +40,9 @@ type
     procedure UpdateConfig(aJSON: TJSONObject); overload;
     procedure UpdateConfig(aKey, aValue: string); overload;
     function LoadConfig: TJSONObject;
+    procedure SaveForm(aForm: TForm);
+    procedure LoadForm(aForm: TForm);
+    function ValidaBanco: boolean;
   end;
 
 var
@@ -123,16 +137,105 @@ begin
   end;
 end;
 
+procedure TSQLiteConfig.LoadForm(aForm: TForm);
+var
+  I, J: integer;
+  JSONTela: TJSONObject;
+begin
+  JSONTela := LoadConfig;
+  try
+    for I := 0 to pred(aForm.ComponentCount) do
+      if JSONTela.getValue(TEdit(aForm.Components[I]).Name) <> nil then
+        if (aForm.Components[I] is TEdit) then
+          TEdit(aForm.Components[I]).Text :=
+            JSONTela.getValue(TEdit(aForm.Components[I]).Name).Value
+        else if (aForm.Components[I] is TComboBox) then
+          TComboBox(aForm.Components[I]).ItemIndex :=
+            JSONTela.getValue(TEdit(aForm.Components[I]).Name).Value.ToInteger
+          {$IFDEF HAS_FMX}
+        else if (aForm.Components[I] is TComboEdit) then
+          TComboEdit(aForm.Components[I]).ItemIndex :=
+            JSONTela.getValue(TEdit(aForm.Components[I]).Name).Value.ToInteger
+        else if (aForm.Components[I] is TDateEdit) then
+          TDateEdit(aForm.Components[I]).Text :=
+            JSONTela.getValue(TEdit(aForm.Components[I]).Name).Value
+        else if (aForm.Components[I] is TSwitch) then
+          TSwitch(aForm.Components[I]).IsChecked :=
+            JSONTela.getValue(TEdit(aForm.Components[I]).Name).Value.ToBoolean
+          {$ENDIF}
+        else if (aForm.Components[I] is TCheckBox) then
+          TCheckBox(aForm.Components[I]).{$IFDEF HAS_FMX}IsChecked{$ELSE}Checked{$ENDIF} := JSONTela.Get(TEdit(aForm.Components[I]).Name).Value.ToBoolean
+          {$IFNDEF HAS_FMX}
+        else if aForm.Components[I] is TLabeledEdit then
+          TLabeledEdit(aForm.Components[I]).Text :=
+            JSONTela.getValue(TLabeledEdit(aForm.Components[I]).Name).Value
+        else if aForm.Components[I] is TValueListEditor then
+          for J := 1 to pred(TValueListEditor(aForm.Components[I]).RowCount) do
+            TValueListEditor(aForm.Components[I]).Cells[1, J] :=
+              JSONTela.getValue(TValueListEditor(aForm.Components[I])
+              .Keys[J]).Value
+            {$ENDIF}
+              ;
+  finally
+    JSONTela.Free;
+  end;
+end;
+
+procedure TSQLiteConfig.SaveForm(aForm: TForm);
+var
+  I, J: integer;
+  JSONTela: TJSONObject;
+begin
+  JSONTela := TJSONObject.Create;
+  try
+    for I := 0 to pred(aForm.ComponentCount) do
+      if aForm.Components[I] is TEdit then
+        JSONTela.AddPair(TEdit(aForm.Components[I]).Name,
+          TEdit(aForm.Components[I]).Text)
+      else if aForm.Components[I] is TComboBox then
+        JSONTela.AddPair(TComboBox(aForm.Components[I]).Name,
+          TComboBox(aForm.Components[I]).ItemIndex)
+        {$IFDEF HAS_FMX}
+      else if aForm.Components[I] is TComboEdit then
+        JSONTela.AddPair(TComboEdit(aForm.Components[I]).Name,
+          TComboEdit(aForm.Components[I]).ItemIndex)
+      else if aForm.Components[I] is TDateEdit then
+        JSONTela.AddPair(TDateEdit(aForm.Components[I]).Name,
+          TDateEdit(aForm.Components[I]).Text)
+      else if aForm.Components[I] is TSwitch then
+        JSONTela.AddPair(TSwitch(aForm.Components[I]).Name,
+          TSwitch(aForm.Components[I]).IsChecked)
+        {$ENDIF}
+      else if aForm.Components[I] is TCheckBox then
+        JSONTela.AddPair(TCheckBox(aForm.Components[I]).Name,
+          TCheckBox(aForm.Components[I]).{$IFDEF HAS_FMX}IsChecked{$ELSE}Checked{$ENDIF})
+        {$IFNDEF HAS_FMX}
+      else if aForm.Components[I] is TLabeledEdit then
+        JSONTela.AddPair(TLabeledEdit(aForm.Components[I]).Name,
+          TLabeledEdit(aForm.Components[I]).Text)
+      else if aForm.Components[I] is TValueListEditor then
+        for J := 1 to pred(TValueListEditor(aForm.Components[I]).RowCount) do
+          JSONTela.AddPair(TValueListEditor(aForm.Components[I]).Keys[J],
+            TValueListEditor(aForm.Components[I]).Cells[1, J]);
+    {$ENDIF}
+    ;
+
+    UpdateConfig(JSONTela);
+  finally
+    JSONTela.Free;
+  end;
+end;
+
 procedure TSQLiteConfig.UpdateConfig(aJSON: TJSONObject);
 var
   JSONVal: TJSONValue;
-  i: integer;
+  I: integer;
 begin
   // exemplo entrada
   // {"key1":"value1", "key2":"value2", "key3":"value3", "key4":"value4", "key5":"value5"}
   // aJSON.Pairs[i].JSONString.tostring = "key1",
   // aJSON.Pairs[i].JSONValue.tostring = "value1";
-  for i := 0 to aJSON.Count - 1 do
+  for I := 0 to aJSON.Count - 1 do
     with FDataSet do
     begin
       Close;
@@ -140,13 +243,13 @@ begin
       SQL.Add('SELECT CFG_Key, CFG_Value');
       SQL.Add('  FROM Config');
       SQL.Add(' WHERE CFG_Key = :CFG_Key');
-      ParamByName('CFG_Key').Value := aJSON.Pairs[i].JsonString.ToString.Replace
+      ParamByName('CFG_Key').Value := aJSON.Pairs[I].JsonString.ToString.Replace
         ('"', '', [rfReplaceAll]);
       Open;
       Edit;
-      Fields.Fields[0].Value := aJSON.Pairs[i].JsonString.ToString.Replace('"',
+      Fields.Fields[0].Value := aJSON.Pairs[I].JsonString.ToString.Replace('"',
         '', [rfReplaceAll]);
-      Fields.Fields[1].Value := aJSON.Pairs[i].JsonValue.ToString.Replace('"',
+      Fields.Fields[1].Value := aJSON.Pairs[I].JsonValue.ToString.Replace('"',
         '', [rfReplaceAll]);
       Post;
       if FDataSet.CachedUpdates then
@@ -176,14 +279,26 @@ begin
   end;
 end;
 
+function TSQLiteConfig.ValidaBanco: boolean;
+begin
+  Result := False;
+  try
+    FDataSet.Open('select count(*) from config');
+    FDataSet.Close;
+    Result := true;
+  except
+    Result := False;
+  end;
+end;
+
 function TSQLiteConfig.Validate: boolean;
 begin
-  Result := false;
+  Result := False;
   try
     with FDataSet do
     begin
       Close;
-      Open('PRAGMA table_info("Config")');
+      Open('PRAGMA table_info(Config)');
       if isEmpty then
       begin
         Close;
@@ -198,7 +313,7 @@ begin
     end;
     Result := true;
   except
-    Result := false;
+    Result := False;
   end;
 end;
 
