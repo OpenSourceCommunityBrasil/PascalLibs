@@ -3,19 +3,23 @@ unit DAC.Postgres.Zeos;
 interface
 
 uses
-  JSON, SysUtils,
+  JSON, SysUtils, Classes,
   ZConnection, ZDataset;
 
 type
+  TConnection = TZConnection;
+  TQuery = TZQuery;
+
   TDAC = class
   private
     FConnection: TZConnection;
     FQuery: TZQuery;
+    function GetDefaultDir(aFileName: string): string;
   public
     constructor Create(aJSON: TJSONObject);
     destructor Destroy; override;
-    function getConnection: TZConnection;
-    function getQuery: TZQuery;
+    function getConnection: TConnection;
+    function getQuery: TQuery;
     function getConnectionStatus: string;
     function getDataBases: TZQuery;
     function getTables(aDataBaseName: string): TZQuery;
@@ -26,14 +30,7 @@ implementation
 { TDAC }
 
 constructor TDAC.Create(aJSON: TJSONObject);
-var
-  DefaultDir: string;
 begin
-  if DirectoryExists(ExtractFileDir(ParamStr(0)) + '\lib\') then
-    DefaultDir := ExtractFileDir(ParamStr(0)) + '\lib\'
-  else
-    DefaultDir := ExtractFileDir(ParamStr(0));
-
   FConnection := TZConnection.Create(nil);
   try
     with FConnection do
@@ -44,7 +41,7 @@ begin
       User := aJSON.GetValue('dbuser').Value;
       Password := aJSON.GetValue('dbpassword').Value;
       Protocol := 'postgresql';
-      LibraryLocation := DefaultDir + 'libpq.dll';
+      LibraryLocation := GetDefaultDir('libpq.dll');
 
       if aJSON.GetValue('banco') <> nil then
         Database := aJSON.GetValue('banco').Value;
@@ -71,7 +68,7 @@ begin
   inherited;
 end;
 
-function TDAC.getConnection: TZConnection;
+function TDAC.getConnection: TConnection;
 begin
   Result := FConnection;
 end;
@@ -106,7 +103,18 @@ begin
 
 end;
 
-function TDAC.getQuery: TZQuery;
+function TDAC.GetDefaultDir(aFileName: string): string;
+var
+  DefaultDir: string;
+begin
+  DefaultDir := ExtractFileDir(ParamStr(0));
+  if FileExists(DefaultDir + '\lib\' + aFileName) then
+    Result := DefaultDir + '\lib\' + aFileName
+  else
+    Result := DefaultDir + aFileName;
+end;
+
+function TDAC.getQuery: TQuery;
 begin
   Result := FQuery;
 end;
