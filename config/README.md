@@ -1,7 +1,10 @@
 # Config
 ### units de criação de banco de dados de valores de configuração no padrão `chave:valor`
 
-### Exemplo de uso para leitura:
+### Exemplo antigo de uso para leitura:
+<details>
+<summary>código</summary>
+
 ```Delphi
 procedure TfConfig.CarregaConfig;
 var
@@ -33,8 +36,26 @@ begin
   end;
 end;
 ```
+</details>
 
-### Exemplo de uso para gravação:
+### Exemplo novo de uso para leitura:
+```Delphi
+procedure TfConfig.CarregaConfig;
+var
+  cfg: TSQLiteConfig;
+begin
+  cfg := TSQLiteConfig.Create;
+  try
+    cfg.LoadForm(Self);
+  Finally
+    cfg.Free;
+  end;
+end;
+```
+
+### Exemplo antigo de uso para gravação:
+<details> <summary> código </summary>
+
 ```Delphi
 procedure TfConfig.SalvaConfig;
 var
@@ -60,6 +81,22 @@ begin
     cfg.UpdateConfig(JSONObj);
   finally
     JSONObj.Free;
+    cfg.Free;
+  end;
+end;
+```
+</details>
+
+### Exemplo novo de uso para gravação:
+```Delphi
+procedure TfConfig.SalvaConfig;
+var
+  cfg: TSQLiteConfig;
+begin
+  cfg := TSQLiteConfig.Create;
+  try
+    cfg.SaveForm(Self);
+  Finally
     cfg.Free;
   end;
 end;
