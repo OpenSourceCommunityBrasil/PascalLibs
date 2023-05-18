@@ -87,17 +87,21 @@ end;
 function TSQLiteConfig.getValue(pKey: string): string;
 begin
   Result := '';
-  with FDataSet do
-  begin
-    Close;
-    SQL.Clear;
-    SQL.Add('SELECT CFG_Value');
-    SQL.Add('  FROM Config');
-    SQL.Add(' WHERE CFG_Key = :CFG_Key');
-    ParamByName('CFG_Key').Value := pKey;
-    Open;
-    Result := Fields.Fields[0].AsString;
-    Close;
+  try
+    with FDataSet do
+    begin
+      Close;
+      SQL.Clear;
+      SQL.Add('SELECT CFG_Value');
+      SQL.Add('  FROM Config');
+      SQL.Add(' WHERE CFG_Key = :CFG_Key');
+      ParamByName('CFG_Key').Value := pKey;
+      Open;
+      Result := Fields.Fields[0].AsString;
+      Close;
+    end;
+  except
+    Result := '';
   end;
 end;
 
@@ -212,13 +216,13 @@ end;
 procedure TSQLiteConfig.UpdateConfig(aJSON: TJSONObject);
 var
   JSONVal: TJSONValue;
-  i: integer;
+  I: integer;
 begin
   // exemplo entrada
   // {"key1":"value1", "key2":"value2", "key3":"value3", "key4":"value4", "key5":"value5"}
   // aJSON.Pairs[i].JSONString.tostring = "key1",
   // aJSON.Pairs[i].JSONValue.tostring = "value1";
-  for i := 0 to aJSON.Count - 1 do
+  for I := 0 to aJSON.Count - 1 do
     with FDataSet do
     begin
       Close;
@@ -226,13 +230,13 @@ begin
       SQL.Add('SELECT CFG_Key, CFG_Value');
       SQL.Add('  FROM Config');
       SQL.Add(' WHERE CFG_Key = :CFG_Key');
-      ParamByName('CFG_Key').Value := aJSON.Pairs[i].JsonString.ToString.Replace
+      ParamByName('CFG_Key').Value := aJSON.Pairs[I].JsonString.ToString.Replace
         ('"', '', [rfReplaceAll]);
       Open;
       Edit;
-      Fields.Fields[0].Value := aJSON.Pairs[i].JsonString.ToString.Replace('"',
+      Fields.Fields[0].Value := aJSON.Pairs[I].JsonString.ToString.Replace('"',
         '', [rfReplaceAll]);
-      Fields.Fields[1].Value := aJSON.Pairs[i].JsonValue.ToString.Replace('"',
+      Fields.Fields[1].Value := aJSON.Pairs[I].JsonValue.ToString.Replace('"',
         '', [rfReplaceAll]);
       Post;
       if FDataSet.CachedUpdates then
@@ -277,7 +281,7 @@ end;
 
 function TSQLiteConfig.Validate: boolean;
 begin
-  Result := false;
+  Result := False;
   try
     with FDataSet do
     begin
@@ -298,7 +302,7 @@ begin
     end;
     Result := true;
   except
-    Result := false;
+    Result := False;
   end;
 end;
 
