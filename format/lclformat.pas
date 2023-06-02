@@ -1,23 +1,13 @@
-/// //////////////////////////////////////////////////////////////////////////
-{
-  Unit Format
-  Criação: 99 Coders (Heber Stein Mazutti - heber@99coders.com.br)
-  Adaptação e melhorias: Mobius One
-}
-/// //////////////////////////////////////////////////////////////////////////
-
 unit LCLFormat;
 
-{$IFDEF FPC}
-  {$codepage UTF8}
-  {$MODE Delphi}
-{$ENDIF}
+{$codepage UTF8}
+{$MODE Delphi}
+{$IFNDEF DEBUG}{$hints off}{$ENDIF}
 
 interface
 
 uses
-  StdCtrls, Classes, DateUtils, Math, SysUtils, TypInfo,
-  StrUtils;
+  StdCtrls, Classes, DateUtils, Math, SysUtils, TypInfo, StrUtils;
 
 const
   csDigitos = ['0'..'9'];
@@ -27,13 +17,13 @@ const
   csSimbolosMon = ['-', '+', ',', '.'];
 
   // Lazarus issue: set in current version is only 0..254 and can't hold unicode chars
-  csEspeciais: array of WideChar = ['ã', 'á', 'à', 'â', 'é', 'ê', 'í', 'ó', 'ô',
-    'õ', 'ú', 'ç', 'Ã', 'Á', 'À', 'Â', 'É', 'Ê', 'Í', 'Ó',
-    'Õ', 'Ô', 'Ú', 'Ç'];
+  csEspeciais: array of widechar =
+    ['ã', 'á', 'à', 'â', 'é', 'ê', 'í', 'ó', 'ô', 'õ', 'ú',
+    'ç', 'Ã', 'Á', 'À', 'Â', 'É', 'Ê', 'Í', 'Ó', 'Õ', 'Ô', 'Ú', 'Ç'];
 
 type
   TFormato = (&Date, Bits, CEP, CEST, CFOP, CNH, CNPJ, CNPJorCPF, CPF, CREA,
-    CRM, Dinheiro, Hora, hhmm, InscricaoEstadual, NCM, OAB, Personalizado, Peso,
+    CRM, Dinheiro, Hora, HoraCurta, InscricaoEstadual, NCM, OAB, Personalizado, Peso,
     Porcentagem, Telefone, TituloEleitor, Valor, VeiculoMercosul,
     VeiculoTradicional);
 
@@ -110,7 +100,7 @@ begin
       Result := Result + aStr[C];
 
     for I := 0 to pred(Length(csEspeciais)) do
-      if aStr[C] = csEspeciais[I] then Result := Result + aStr[C]
+      if aStr[C] = csEspeciais[I] then Result := Result + aStr[C];
   end;
 end;
 
@@ -136,16 +126,17 @@ begin
   if aPrecisao < 0 then
     aPrecisao := 2;
 
+  Result := 0;
   try
     Valor := '';
     for x := 0 to pred(aStr.Length) do
       if CharInSet(aStr.Chars[x], csDigitos + [',', '-']) then
         Valor := Valor + aStr.Chars[x];
 
-    Result := Format('%.' + aPrecisao.ToString + 'f',
-      [StrToFloatDef(Valor, 0)]).ToDouble;
+    Result := StrToFloat(Format('%.' + IntToStr(aPrecisao) + 'f',
+      [StrToFloatDef(Valor, 0)]));
   except
-    Result := Format('%.' + aPrecisao.ToString + 'f', [0]).ToDouble;
+    Result := StrToFloat(Format('%.' + IntToStr(aPrecisao) + 'f', [0]));
   end;
 end;
 
@@ -223,7 +214,7 @@ begin
     if aStr.Length > 8 then
     begin
       try
-        Result := FormatDateTime('dd/mm/yyyy', UnixToDateTime(aStr.ToInt64));
+        Result := FormatDateTime('dd/mm/yyyy', UnixToDateTime(StrToInt64(aStr)));
       except
         Result := '';
       end;
@@ -251,7 +242,7 @@ end;
 function TFormatHelper.FormataDinheiro(aStr: string; aPrecisao: integer): string;
 begin
   try
-    Result := Format('%.' + aPrecisao.ToString + 'm',
+    Result := Format('%.' + IntToStr(aPrecisao) + 'm',
       [StrToFloatDef(Inteiro(aStr), 0) / Power(10, aPrecisao)]);
   except
     Result := Format('%.2m', [0]);
@@ -382,9 +373,9 @@ function TFormatHelper.FormataPeso(aStr: string; aSeparador: boolean = False): s
 begin
   try
     if aSeparador then
-      Result := Format('%.3n', [SomenteNumero(aStr).ToInteger / 1000])
+      Result := Format('%.3n', [StrToInt(SomenteNumero(aStr)) / 1000])
     else
-      Result := Format('%.3f', [SomenteNumero(aStr).ToInteger / 1000]);
+      Result := Format('%.3f', [StrToInt(SomenteNumero(aStr)) / 1000]);
   except
     Result := Format('%.3f', [0]);
   end;
@@ -407,7 +398,8 @@ begin
       Texto := FormataData(SomenteNumero(Texto));
 
     Bits:
-      Texto := FormataBits(SomenteNumero(Texto));
+      raise Exception.Create('Recurso em implementação');
+    //Texto := FormataBits(SomenteNumero(Texto));
 
     CEP:
       Texto := Mask('99.999-999', SomenteNumero(Texto));
@@ -437,7 +429,7 @@ begin
       Texto := Mask('999999999-9', SomenteNumero(Texto));
 
     CRM:
-      Texto := FormataCRM(Ultimos(SomenteNumero(Texto), 6).ToInteger, ExtraArg);
+      Texto := FormataCRM(StrToIntDef(Ultimos(SomenteNumero(Texto), 6), 0), ExtraArg);
 
     Dinheiro:
       if ExtraArg <> varNull then
@@ -448,7 +440,7 @@ begin
     Hora:
       Texto := FormataHora(SomenteNumero(Texto));
 
-    hhmm:
+    HoraCurta:
       Texto := FormataHoraCurta(SomenteNumero(Texto));
 
     InscricaoEstadual:
@@ -458,7 +450,7 @@ begin
       Texto := Mask('9999.99.99', SomenteNumero(Texto));
 
     OAB:
-      Texto := FormataOAB(Ultimos(SomenteNumero(Texto), 6).ToInteger, ExtraArg);
+      Texto := FormataOAB(StrToIntDef(Ultimos(SomenteNumero(Texto), 6), 0), ExtraArg);
 
     Personalizado:
       Texto := Mask(ExtraArg, SomenteNumero(Texto));
@@ -467,7 +459,7 @@ begin
       Texto := FormataPeso(SomenteNumero(Texto));
 
     Porcentagem:
-      Texto := Format('%.2f %s', [Decimal(Texto, 2), '%']);
+      Texto := Format('%.2f %%', [StrToIntDef(SomenteNumero(Texto), 0)/100]);
 
     Telefone:
       if Length(SomenteNumero(Texto)) <= 10 then
@@ -609,7 +601,7 @@ end;
 
 function TEditHelper.Decimal: string;
 begin
-  Result := Formato.Decimal(Self.Text, 2).ToString;
+  Result := FloatToStr(Formato.Decimal(Self.Text, 2));
   Self.SelStart := Length(Self.Text);
 end;
 
