@@ -1,3 +1,6 @@
+// Maiores Informações
+// https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
+
 unit Config.SQLite.Zeos;
 
 interface

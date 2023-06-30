@@ -1,10 +1,5 @@
-﻿/// //////////////////////////////////////////////////////////////////////////
-{
-  Unit Format
-  Criação: 99 Coders (Heber Stein Mazutti - heber@99coders.com.br)
-  Adaptação e melhorias: Mobius One
-}
-/// //////////////////////////////////////////////////////////////////////////
+﻿// Maiores Informações
+// https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
 
 unit VCLFormat;
 

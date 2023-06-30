@@ -1,3 +1,6 @@
+// Maiores Informações
+// https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
+
 unit DAC.Postgres.Zeos;
 
 interface
@@ -14,6 +17,7 @@ type
   private
     FConnection: TZConnection;
     FQuery: TZQuery;
+    FSchema: string;
     function GetDefaultDir(aFileName: string): string;
   public
     constructor Create(aJSON: TJSONObject);
@@ -31,6 +35,9 @@ implementation
 
 constructor TDAC.Create(aJSON: TJSONObject);
 begin
+  FConnection := nil;
+  FQuery := nil;
+  FSchema := '';
   FConnection := TZConnection.Create(nil);
   try
     with FConnection do
@@ -50,10 +57,7 @@ begin
     FQuery.Connection := FConnection;
 
     if aJSON.GetValue('schema') <> nil then
-    begin
-      FQuery.SQL.Add('SET search_path = ' + aJSON.GetValue('schema').Value);
-      FQuery.ExecSQL;
-    end;
+      FSchema := aJSON.GetValue('schema').Value;
   except
     // log
   end;
@@ -61,10 +65,11 @@ end;
 
 destructor TDAC.Destroy;
 begin
-  if FQuery <> nil then
-    FQuery.Free;
-  if FConnection <> nil then
-    FConnection.Free;
+  FQuery.Connection := nil;
+  if Assigned(FQuery) then
+    FreeAndNil(FQuery);
+  if Assigned(FConnection) then
+    FreeAndNil(FConnection);
   inherited;
 end;
 
@@ -116,6 +121,8 @@ end;
 
 function TDAC.getQuery: TQuery;
 begin
+  if not FSchema.IsEmpty then
+    FQuery.SQL.Add('SET search_path = ' + QuotedStr(FSchema) + ';');
   Result := FQuery;
 end;
 

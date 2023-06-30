@@ -1,3 +1,6 @@
+// Maiores Informações
+// https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
+
 unit DAC.Firebird.FireDAC;
 
 interface

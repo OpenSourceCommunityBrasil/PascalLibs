@@ -1,10 +1,5 @@
-﻿/// //////////////////////////////////////////////////////////////////////////
-{
-  Unit Format
-  Criação: 99 Coders (Heber Stein Mazutti - heber@99coders.com.br)
-  Adaptação e melhorias: Mobius One
-}
-/// //////////////////////////////////////////////////////////////////////////
+﻿// Maiores Informações
+// https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
 
 unit FMXFormat;
 
@@ -82,6 +77,18 @@ type
     function SomenteNumero: string;
   end;
 
+const
+  csNumbers = ['0' .. '9'];
+  csIntegers = ['0' .. '9', '-'];
+  csCharacters = ['a' .. 'z', 'A' .. 'Z'];
+  csCurrencyDigits = ['0' .. '1', '-', ','];
+  csLatinAccentCharacters = ['ã', 'á', 'à', 'â', 'é', 'ê', 'í', 'ó', 'ô', 'õ',
+    'ú', 'ç', 'Ã', 'Á', 'À', 'Â', 'É', 'Ê', 'Í', 'Ó', 'Õ', 'Ô', 'Ú', 'Ç'];
+  csLatinAlphaNumeric = ['0' .. '9', 'a' .. 'z', 'A' .. 'Z', 'ã', 'á', 'à', 'â',
+    'é', 'ê', 'í', 'ó', 'ô', 'õ', 'ú', 'ç', 'Ã', 'Á', 'À', 'Â', 'É', 'Ê', 'Í',
+    'Ó', 'Õ', 'Ô', 'Ú', 'Ç'];
+  csFormatIdentifier = ['#', 'L', 'l', '9'];
+
 var
   Formato: TFormatHelper;
 
@@ -97,9 +104,7 @@ var
 begin
   Result := '';
   for x := 0 to pred(aStr.Length) do
-    if (aStr.Chars[x] In ['0' .. '9', 'a' .. 'z', 'A' .. 'Z', 'ã', 'á', 'à',
-      'â', 'é', 'ê', 'í', 'ó', 'ô', 'õ', 'ú', 'ç', 'Ã', 'Á', 'À', 'Â', 'É', 'Ê',
-      'Í', 'Ó', 'Õ', 'Ô', 'Ú', 'Ç', ' ']) then
+    if CharInSet(aStr.Chars[x], csLatinAlphaNumeric) then
       Result := Result + aStr.Chars[x];
 end;
 
@@ -109,7 +114,7 @@ var
 begin
   Result := '';
   for x := 0 to pred(aStr.Length) do
-    if (aStr.Chars[x] In ['0' .. '9', ',', '-']) then
+    if CharInSet(aStr.Chars[x], csCurrencyDigits) then
       Result := Result + aStr.Chars[x];
 end;
 
@@ -128,7 +133,7 @@ begin
   try
     Valor := '';
     for x := 0 to pred(aStr.Length) do
-      if (aStr.Chars[x] In ['0' .. '9', ',', '-']) then
+      if CharInSet(aStr.Chars[x], csCurrencyDigits) then
         Valor := Valor + aStr.Chars[x];
 
     Result := Format('%.' + aPrecisao.ToString + 'f', [StrToFloatDef(Valor, 0)]
@@ -508,7 +513,7 @@ var
 begin
   Result := '';
   for x := 0 to Length(aStr) - 1 do
-    if (aStr.Chars[x] In ['0' .. '9', '-']) then
+    if CharInSet(aStr.Chars[x], csIntegers) then
       Result := Result + aStr.Chars[x];
 end;
 
@@ -535,25 +540,25 @@ begin
         Result := Result + aStr.Chars[textidx];
         inc(textidx);
       end
-      else if (Mascara.Chars[maskidx] = 'L') and
-        (aStr.Chars[textidx] in ['a' .. 'z', 'A' .. 'Z']) then
+      else if (Mascara.Chars[maskidx] = 'L') and CharInSet(aStr.Chars[textidx],
+        csCharacters) then
       begin
         Result := Result + UpperCase(aStr.Chars[textidx]);
         inc(textidx);
       end
-      else if (Mascara.Chars[maskidx] = 'l') and
-        (aStr.Chars[textidx] in ['a' .. 'z', 'A' .. 'Z']) then
+      else if (Mascara.Chars[maskidx] = 'l') and CharInSet(aStr.Chars[textidx],
+        csCharacters) then
       begin
         Result := Result + LowerCase(aStr.Chars[textidx]);
         inc(textidx);
       end
-      else if (Mascara.Chars[maskidx] = '9') and
-        (aStr.Chars[textidx] in ['0' .. '9']) then
+      else if (Mascara.Chars[maskidx] = '9') and CharInSet(aStr.Chars[textidx],
+        csNumbers) then
       begin
         Result := Result + aStr.Chars[textidx];
         inc(textidx);
       end
-      else if not(Mascara.Chars[maskidx] in ['#', 'L', 'l', '9']) then
+      else if not CharInSet(Mascara.Chars[maskidx], csFormatIdentifier) then
         Result := Result + Mascara.Chars[maskidx];
 
       if textidx = Length(aStr) then
@@ -579,7 +584,7 @@ var
 begin
   Result := '';
   for x := 0 to Length(aStr) - 1 do
-    if (aStr.Chars[x] In ['0' .. '9']) then
+    if CharInSet(aStr.Chars[x], csNumbers) then
       Result := Result + aStr.Chars[x];
 end;
 
