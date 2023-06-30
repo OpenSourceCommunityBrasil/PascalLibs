@@ -11,14 +11,17 @@ or Declared(FMX.Types.TFmxObject) or Defined(LINUX64)}
 {$ENDIF}
 
 uses
+  System.JSON, System.SysUtils, System.Generics.Collections,
+  Data.DB,
   {$IF CompilerVersion > 33.0}
   FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.Stan.ExprFuncs,
   FireDAC.Phys.SQLiteDef, FireDAC.Stan.Intf, FireDAC.Phys, FireDAC.Phys.SQLite,
+  FireDAC.Stan.Param,
   {$IFEND}
   {$IFDEF Android}
   System.IOUtils,
   {$ENDIF}
-  FireDAC.Comp.Client, System.JSON, System.SysUtils
+  FireDAC.Comp.Client
 
   {$IFDEF HAS_FMX}
     , FMX.Forms, FMX.Edit, FMX.ComboEdit, FMX.StdCtrls, FMX.ExtCtrls,
@@ -114,7 +117,7 @@ begin
     SQL.Add('SELECT CFG_Value');
     SQL.Add('  FROM Config');
     SQL.Add(' WHERE CFG_Key = :CFG_Key');
-    ParamByName('CFG_Key').Value := pKey;
+    ParamByName('CFG_Key').AsString := pKey;
     Open;
     Result := Fields.Fields[0].AsString;
     Close;
@@ -142,7 +145,10 @@ end;
 
 procedure TSQLiteConfig.LoadForm(aForm: TForm);
 var
-  I, J: integer;
+  {$IFNDEF HAS_FMX}
+  J: integer;
+  {$ENDIF}
+  I: integer;
   JSONTela: TJSONObject;
 begin
   JSONTela := LoadConfig;
@@ -186,7 +192,10 @@ end;
 
 procedure TSQLiteConfig.SaveForm(aForm: TForm);
 var
-  I, J: integer;
+  {$IFNDEF HAS_FMX}
+  J: integer;
+  {$ENDIF}
+  I: integer;
   JSONTela: TJSONObject;
 begin
   JSONTela := TJSONObject.Create;
@@ -231,7 +240,6 @@ end;
 
 procedure TSQLiteConfig.UpdateConfig(aJSON: TJSONObject);
 var
-  JSONVal: TJSONValue;
   I: integer;
 begin
   // exemplo entrada
@@ -246,13 +254,13 @@ begin
       SQL.Add('SELECT CFG_Key, CFG_Value');
       SQL.Add('  FROM Config');
       SQL.Add(' WHERE CFG_Key = :CFG_Key');
-      ParamByName('CFG_Key').Value := aJSON.Pairs[I].JsonString.ToString.Replace
+      ParamByName('CFG_Key').AsString := aJSON.Pairs[I].JsonString.ToString.Replace
         ('"', '', [rfReplaceAll]);
       Open;
       Edit;
-      Fields.Fields[0].Value := aJSON.Pairs[I].JsonString.ToString.Replace('"',
+      Fields.Fields[0].AsString := aJSON.Pairs[I].JsonString.ToString.Replace('"',
         '', [rfReplaceAll]);
-      Fields.Fields[1].Value := aJSON.Pairs[I].JsonValue.ToString.Replace('"',
+      Fields.Fields[1].AsString := aJSON.Pairs[I].JsonValue.ToString.Replace('"',
         '', [rfReplaceAll]);
       Post;
       if FDataSet.CachedUpdates then
@@ -270,11 +278,11 @@ begin
     SQL.Add('SELECT CFG_Key, CFG_Value');
     SQL.Add('  FROM Config');
     SQL.Add(' WHERE CFG_Key = :CFG_Key');
-    ParamByName('CFG_Key').Value := aKey;
+    ParamByName('CFG_Key').AsString := aKey;
     Open;
     Edit;
-    Fields.Fields[0].Value := aKey;
-    Fields.Fields[1].Value := aValue;
+    Fields.Fields[0].AsString := aKey;
+    Fields.Fields[1].AsString := aValue;
     Post;
     if FDataSet.CachedUpdates then
       ApplyUpdates;
