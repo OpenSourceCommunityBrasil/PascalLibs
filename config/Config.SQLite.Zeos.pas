@@ -121,7 +121,8 @@ begin
     Open;
     while not Eof do
     begin
-      Result.AddPair(Fields.Fields[0].AsString, Fields.Fields[1].AsString);
+      Result.AddPair(Fields.Fields[0].AsString,
+        TJSONObject.ParseJSONValue(Fields.Fields[1].AsString));
       Next;
     end;
     Close;
@@ -134,12 +135,12 @@ var
   J: integer;
   {$ENDIF}
   I: integer;
-  JSONTela: TJSONObject;
+  JSONTela, JSONItem: TJSONObject;
 begin
   JSONTela := LoadConfig;
   try
     for I := 0 to pred(aForm.ComponentCount) do
-      if JSONTela.getValue(TEdit(aForm.Components[I]).Name) <> nil then
+      if JSONTela.getValue(aForm.Components[I].Name) <> nil then
         if (aForm.Components[I] is TEdit) then
           TEdit(aForm.Components[I]).Text :=
             JSONTela.getValue(TEdit(aForm.Components[I]).Name).Value
@@ -163,13 +164,22 @@ begin
         else if aForm.Components[I] is TLabeledEdit then
           TLabeledEdit(aForm.Components[I]).Text :=
             JSONTela.getValue(TLabeledEdit(aForm.Components[I]).Name).Value
-        else if aForm.Components[I] is TValueListEditor then
-          for J := 1 to pred(TValueListEditor(aForm.Components[I]).RowCount) do
-            TValueListEditor(aForm.Components[I]).Cells[1, J] :=
-              JSONTela.getValue(TValueListEditor(aForm.Components[I])
-              .Keys[J]).Value
-            {$ENDIF}
-              ;
+        else if (aForm.Components[I] is TValueListEditor) then
+        begin
+          JSONItem :=
+            TJSONObject(TJSONObject.ParseJSONValue
+            (JSONTela.getValue(TValueListEditor(aForm.Components[I])
+            .Name).ToJSON));
+          if JSONItem <> nil then
+            for J := 1 to pred(TValueListEditor(aForm.Components[I])
+              .RowCount) do
+              TValueListEditor(aForm.Components[I]).Cells[1, J] :=
+                JSONItem.getValue(TValueListEditor(aForm.Components[I])
+                .Keys[J]).Value;
+          JSONItem.Free;
+        end
+        {$ENDIF}
+          ;
   finally
     JSONTela.Free;
   end;
@@ -181,7 +191,7 @@ var
   J: integer;
   {$ENDIF}
   I: integer;
-  JSONTela: TJSONObject;
+  JSONTela, JSONItem: TJSONObject;
 begin
   JSONTela := TJSONObject.Create;
   try
@@ -211,11 +221,17 @@ begin
         JSONTela.AddPair(TLabeledEdit(aForm.Components[I]).Name,
           TLabeledEdit(aForm.Components[I]).Text)
       else if aForm.Components[I] is TValueListEditor then
+      begin
+        JSONItem := TJSONObject.Create;
         for J := 1 to pred(TValueListEditor(aForm.Components[I]).RowCount) do
-          JSONTela.AddPair(TValueListEditor(aForm.Components[I]).Keys[J],
+          JSONItem.AddPair(TValueListEditor(aForm.Components[I]).Keys[J],
             TValueListEditor(aForm.Components[I]).Cells[1, J]);
-    {$ENDIF}
-    ;
+        JSONTela.AddPair(TValueListEditor(aForm.Components[I]).Name,
+          TJSONObject.ParseJSONValue(JSONItem.ToJSON));
+        JSONItem.Free;
+      end
+      {$ENDIF}
+        ;
 
     UpdateConfig(JSONTela);
   finally
@@ -229,8 +245,8 @@ var
 begin
   // exemplo entrada
   // {"key1":"value1", "key2":"value2", "key3":"value3", "key4":"value4", "key5":"value5"}
-  // aJSON.Pairs[i].JSONString.tostring = "key1",
-  // aJSON.Pairs[i].JSONValue.tostring = "value1";
+  // aJSON.Pairs[i].JSONString.Value = "key1",
+  // aJSON.Pairs[i].JSONValue.Value = "value1";
   for I := 0 to aJSON.Count - 1 do
     with FDataSet do
     begin
@@ -239,14 +255,11 @@ begin
       SQL.Add('SELECT CFG_Key, CFG_Value');
       SQL.Add('  FROM Config');
       SQL.Add(' WHERE CFG_Key = :CFG_Key');
-      ParamByName('CFG_Key').AsString := aJSON.Pairs[I].JsonString.ToString.Replace
-        ('"', '', [rfReplaceAll]);
+      ParamByName('CFG_Key').AsString := aJSON.Pairs[I].JsonString.Value;
       Open;
       Edit;
-      Fields.Fields[0].AsString := aJSON.Pairs[I].JsonString.ToString.Replace('"',
-        '', [rfReplaceAll]);
-      Fields.Fields[1].AsString := aJSON.Pairs[I].JsonValue.ToString.Replace('"',
-        '', [rfReplaceAll]);
+      Fields.Fields[0].AsString := aJSON.Pairs[I].JsonString.Value;
+      Fields.Fields[1].AsString := aJSON.Pairs[I].JsonValue.ToString;
       Post;
       if FDataSet.CachedUpdates then
         ApplyUpdates;

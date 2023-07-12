@@ -21,9 +21,12 @@ type
       aHeaders: TJSONObject = nil; aBody: TJSONObject = nil); overload;
     procedure DefineFileParams(aMethod: TRESTRequestMethod;
       aHeaders: TJSONObject = nil; aBody: TStream = nil);
+    function GetUserAgent: string;
+    procedure SetUserAgent(const Value: string);
   public
     constructor Create; overload;
     constructor Create(aBaseURL: string); overload;
+    constructor Create(aBaseURL, aUserAgent: string); overload;
     destructor Destroy; override;
     function Get(aParams: TJSONObject = nil): string;
     function GetFile(aParams: TJSONObject = nil): TStream;
@@ -39,6 +42,7 @@ type
 
     property BaseURL: string read GetBaseURL write SetBaseURL;
     property Endpoint: string read GetResource write SetResource;
+    property UserAgent: string read GetUserAgent write SetUserAgent;
   end;
 
   THelper = class helper for TCustomRESTResponse
@@ -64,6 +68,13 @@ constructor TRESTDAO.Create(aBaseURL: string);
 begin
   Create;
   BaseURL := aBaseURL;
+end;
+
+constructor TRESTDAO.Create(aBaseURL, aUserAgent: string);
+begin
+  Create;
+  BaseURL := aBaseURL;
+  UserAgent := aUserAgent;
 end;
 
 procedure TRESTDAO.DefineFileParams(aMethod: TRESTRequestMethod;
@@ -179,6 +190,11 @@ begin
   Result := FRESTRequest.Resource;
 end;
 
+function TRESTDAO.GetUserAgent: string;
+begin
+  Result := FRESTClient.UserAgent;
+end;
+
 procedure TRESTDAO.SetBaseURL(const Value: string);
 begin
   FRESTClient.BaseURL := Value;
@@ -187,6 +203,11 @@ end;
 procedure TRESTDAO.SetResource(const Value: string);
 begin
   FRESTRequest.Resource := Value;
+end;
+
+procedure TRESTDAO.SetUserAgent(const Value: string);
+begin
+  FRESTClient.UserAgent := Value;
 end;
 
 { THelper }
