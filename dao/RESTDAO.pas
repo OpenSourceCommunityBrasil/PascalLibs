@@ -17,9 +17,9 @@ type
     function GetBaseURL: string;
     procedure SetResource(const Value: string);
     function GetResource: string;
-    procedure DefineParams(aMethod: TRESTRequestMethod;
+    procedure SetParams(aMethod: TRESTRequestMethod;
       aHeaders: TJSONObject = nil; aBody: TJSONObject = nil); overload;
-    procedure DefineFileParams(aMethod: TRESTRequestMethod;
+    procedure SetFileParams(aMethod: TRESTRequestMethod;
       aHeaders: TJSONObject = nil; aBody: TStream = nil);
     function GetUserAgent: string;
     procedure SetUserAgent(const Value: string);
@@ -77,7 +77,7 @@ begin
   UserAgent := aUserAgent;
 end;
 
-procedure TRESTDAO.DefineFileParams(aMethod: TRESTRequestMethod;
+procedure TRESTDAO.SetFileParams(aMethod: TRESTRequestMethod;
   aHeaders: TJSONObject; aBody: TStream);
 var
   I: integer;
@@ -95,7 +95,7 @@ begin
   FRESTRequest.Response := nil;
 end;
 
-procedure TRESTDAO.DefineParams(aMethod: TRESTRequestMethod;
+procedure TRESTDAO.SetParams(aMethod: TRESTRequestMethod;
   aHeaders, aBody: TJSONObject);
 var
   I: integer;
@@ -116,7 +116,7 @@ end;
 function TRESTDAO.Delete(aParams: TJSONObject): string;
 begin
   Result := '';
-  DefineParams(rmDELETE, aParams);
+  SetParams(rmDELETE, aParams);
   FRESTRequest.Execute;
   Result := FRESTRequest.Response.Content;
 end;
@@ -135,7 +135,7 @@ end;
 function TRESTDAO.Get(aParams: TJSONObject): string;
 begin
   Result := '';
-  DefineParams(rmGET, aParams);
+  SetParams(rmGET, aParams);
   FRESTRequest.Execute;
   Result := FRESTRequest.Response.Content;
 end;
@@ -143,7 +143,7 @@ end;
 function TRESTDAO.GetFile(aParams: TJSONObject): TStream;
 begin
   Result := nil;
-  DefineFileParams(rmGET, aParams);
+  SetFileParams(rmGET, aParams);
   FRESTRequest.Execute;
   FRESTRequest.Response.SaveToStream(Result);
 end;
@@ -151,7 +151,7 @@ end;
 function TRESTDAO.PostFile(aHeaderParams, aBody: TJSONObject): TStream;
 begin
   Result := nil;
-  DefineParams(rmPOST, aHeaderParams, aBody);
+  SetParams(rmPOST, aHeaderParams, aBody);
   FRESTRequest.Execute;
   FRESTRequest.Response.SaveToStream(Result);
 end;
@@ -159,7 +159,7 @@ end;
 function TRESTDAO.Post(aHeaderParams, aBody: TJSONObject): string;
 begin
   Result := '';
-  DefineParams(rmPOST, aHeaderParams, aBody);
+  SetParams(rmPOST, aHeaderParams, aBody);
   FRESTRequest.Execute;
   Result := FRESTRequest.Response.Content;
 end;
@@ -167,7 +167,7 @@ end;
 function TRESTDAO.Post(aHeaderParams: TJSONObject; aBody: TStream): string;
 begin
   Result := '';
-  DefineFileParams(rmPOST, aHeaderParams, aBody);
+  SetFileParams(rmPOST, aHeaderParams, aBody);
   FRESTRequest.Execute;
   Result := FRESTRequest.Response.Content;
 end;
@@ -175,7 +175,7 @@ end;
 function TRESTDAO.PostFile(aHeaderParams: TJSONObject; aBody: TStream): TStream;
 begin
   Result := nil;
-  DefineFileParams(rmPOST, aHeaderParams, aBody);
+  SetFileParams(rmPOST, aHeaderParams, aBody);
   FRESTRequest.Execute;
   FRESTRequest.Response.SaveToStream(Result);
 end;

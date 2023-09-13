@@ -1,7 +1,7 @@
 // Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
 
-unit Config.SQLite.Zeos;
+unit Config.SQLite.FireDAC;
 
 interface
 
@@ -11,12 +11,17 @@ or Declared(FMX.Types.TFmxObject) or Defined(LINUX64)}
 {$ENDIF}
 
 uses
+  System.JSON, System.SysUtils, System.Generics.Collections, System.Classes,
+  Data.DB,
+  {$IF CompilerVersion > 33.0}
+  FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.Stan.ExprFuncs,
+  FireDAC.Phys.SQLiteDef, FireDAC.Stan.Intf, FireDAC.Phys, FireDAC.Phys.SQLite,
+  FireDAC.Stan.Param,
+  {$IFEND}
   {$IFDEF Android}
   System.IOUtils,
   {$ENDIF}
-  System.JSON, System.SysUtils, System.Generics.Collections,
-  Data.DB,
-  ZConnection, ZDataSet
+  FireDAC.Comp.Client
 
   {$IFDEF HAS_FMX}
     , FMX.Forms, FMX.Edit, FMX.ComboEdit, FMX.StdCtrls, FMX.ExtCtrls,
@@ -29,8 +34,9 @@ uses
 type
   TSQLiteConfig = class
   private
-    FConn: TZConnection;
-    FDataSet: TZQuery;
+    FConn: TFDConnection;
+    FDataSet: TFDQuery;
+    FDriver: TFDPhysSQLiteDriverLink;
     function Validate: boolean;
     function GetDefaultDir(aFileName: string): string;
   public
@@ -45,26 +51,36 @@ type
     function ValidaBanco: boolean;
   end;
 
+var
+  aCFG: TSQLiteConfig;
+
 implementation
 
 { TSQLiteConfig }
 
 constructor TSQLiteConfig.Create;
 begin
-  FConn := TZConnection.Create(nil);
-  FConn.Protocol := 'sqlite-3';
+  {$IFDEF MSWINDOWS} // android já possui a dll instalada
+  FDriver := TFDPhysSQLiteDriverLink.Create(nil);
+  FDriver.DriverID := 'SQLite';
+  FDriver.VendorLib := GetDefaultDir('sqlite3.dll');
+  {$ENDIF}
+  FConn := TFDConnection.Create(nil);
+  FConn.Params.Clear;
+  FConn.Params.Add('DriverID=SQLite');
   {$IFDEF Android}
-  FConn.Database := TPath.Combine(TPath.GetDocumentsPath, 'config.db');
+  FConn.Params.Add('Database=' + TPath.Combine(TPath.GetDocumentsPath,
+    'config.db'));
   {$ENDIF}
   {$IFDEF MSWINDOWS}
-  FConn.Database := ExtractFilePath(ParamStr(0)) + 'config.db';
+  FConn.Params.Add('Database=' + ExtractFilePath(ParamStr(0)) + 'config.db');
   {$ENDIF}
-  FConn.Properties.Add('LockingMode=normal');
+  FConn.Params.Add('LockingMode=normal');
 
-  FDataSet := TZQuery.Create(nil);
+  FDataSet := TFDQuery.Create(nil);
   FDataSet.Connection := FConn;
+  FDataSet.ResourceOptions.SilentMode := true;
 
-  FConn.LibraryLocation := GetDefaultDir('sqlite3.dll');
   if not Validate then
     raise Exception.Create
       ('sqlite3.dll precisa estar na raiz do projeto ou na pasta /lib');
@@ -74,6 +90,9 @@ destructor TSQLiteConfig.Destroy;
 begin
   FDataSet.Free;
   FConn.Free;
+  {$IFDEF MSWINDOWS}
+  FDriver.Free;
+  {$ENDIF}
   inherited;
 end;
 
@@ -89,23 +108,47 @@ begin
 end;
 
 function TSQLiteConfig.getValue(pKey: string): string;
+var
+  SQL: TStringList;
+  Idx: Integer;
+  JSON: TJSONObject;
 begin
   Result := '';
+  Idx := 0;
+  if pos('.', pKey) > 0 then
+    Idx := pos('.', pKey);
+
+  SQL := TStringList.Create;
   try
-    with FDataSet do
-    begin
-      Close;
-      SQL.Clear;
+    try
       SQL.Add('SELECT CFG_Value');
       SQL.Add('  FROM Config');
       SQL.Add(' WHERE CFG_Key = :CFG_Key');
-      ParamByName('CFG_Key').AsString := pKey;
-      Open;
-      Result := Fields.Fields[0].AsString;
-      Close;
+      if Idx > 0 then
+        SQL.Text := SQL.Text.Replace(':CFG_Key',
+          QuotedStr(Copy(pKey, 0, Idx - 1)))
+      else
+        SQL.Text := SQL.Text.Replace(':CFG_Key', QuotedStr(pKey));
+
+      FDataSet.Close;
+      FDataSet.SQL.Text := SQL.Text;
+      FDataSet.Open;
+
+      if (Idx > 0) and (not FDataSet.IsEmpty) then
+      begin
+        JSON := TJSONObject(TJSONObject.ParseJSONValue(FDataSet.Fields.Fields[0]
+          .AsString));
+        Result := JSON.getValue(Copy(pKey, Idx + 1, length(pKey))).Value;
+        JSON.Free;
+      end
+      else
+        Result := FDataSet.Fields.Fields[0].AsString.Replace('"', '');
+      FDataSet.Close;
+    except
+      Result := '';
     end;
-  except
-    Result := '';
+  finally
+    SQL.Free;
   end;
 end;
 
@@ -245,8 +288,8 @@ var
 begin
   // exemplo entrada
   // {"key1":"value1", "key2":"value2", "key3":"value3", "key4":"value4", "key5":"value5"}
-  // aJSON.Pairs[i].JSONString.Value = "key1",
-  // aJSON.Pairs[i].JSONValue.Value = "value1";
+  // aJSON.Pairs[i].JSONString.tostring = "key1",
+  // aJSON.Pairs[i].JSONValue.tostring = "value1";
   for I := 0 to aJSON.Count - 1 do
     with FDataSet do
     begin
@@ -292,8 +335,7 @@ function TSQLiteConfig.ValidaBanco: boolean;
 begin
   Result := False;
   try
-    FDataSet.SQL.Text := 'select count(*) from config';
-    FDataSet.Open;
+    FDataSet.Open('select count(*) from config');
     FDataSet.Close;
     Result := true;
   except
@@ -308,8 +350,7 @@ begin
     with FDataSet do
     begin
       Close;
-      SQL.Text := 'PRAGMA table_info("Config")';
-      Open;
+      Open('PRAGMA table_info(Config)');
       if isEmpty then
       begin
         Close;
