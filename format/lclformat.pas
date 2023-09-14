@@ -414,7 +414,7 @@ begin
       Texto := Mask('9.999', SomenteNumero(Texto));
 
     CNH:
-      Texto := Mask('#########', AlfaNumerico(Texto));
+      Texto := Mask('###########', AlfaNumerico(Texto));
 
     CNPJ:
       Texto := Mask('99.999.999/9999-99', SomenteNumero(Texto));
