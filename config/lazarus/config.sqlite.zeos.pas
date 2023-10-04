@@ -8,11 +8,13 @@ unit Config.SQLite.Zeos;
 interface
 
 uses
-  fpJSON, SysUtils, Classes, DB,
-  Forms, StdCtrls, ExtCtrls, ValEdit,
+  fpJSON, SysUtils, Classes, DB, Forms, StdCtrls, ExtCtrls, ValEdit,
   ZConnection, ZDataSet;
 
 type
+
+  { TSQLiteConfig }
+
   TSQLiteConfig = class
   private
     FConn: TZConnection;
@@ -20,7 +22,7 @@ type
     function Validate: boolean;
     function GetDefaultDir(aFileName: string): string;
   public
-    constructor Create;
+    constructor Create(aFileName: string = 'config.db');
     destructor Destroy; override;
     function getValue(pKey: string): string;
     procedure UpdateConfig(aJSON: TJSONObject); overload;
@@ -35,11 +37,11 @@ implementation
 
 { TSQLiteConfig }
 
-constructor TSQLiteConfig.Create;
+constructor TSQLiteConfig.Create(aFileName: string);
 begin
   FConn := TZConnection.Create(nil);
   FConn.Protocol := 'sqlite-3';
-  FConn.Database := ExtractFilePath(ParamStr(0)) + 'config.db';
+  FConn.Database := ExtractFilePath(ParamStr(0)) + aFileName;
   FConn.Properties.Add('LockingMode=normal');
   FConn.LibraryLocation := GetDefaultDir('sqlite3.dll');
 
@@ -261,12 +263,15 @@ function TSQLiteConfig.ValidaBanco: boolean;
 begin
   Result := False;
   try
-    FDataSet.SQL.Text := 'select count(*) from config';
-    FDataSet.Open;
+    try
+      FDataSet.SQL.Text := 'PRAGMA table_info("Config")';
+      FDataSet.ExecSQL;
+      Result := True;
+    except
+      Result := False;
+    end;
+  finally
     FDataSet.Close;
-    Result := True;
-  except
-    Result := False;
   end;
 end;
 
