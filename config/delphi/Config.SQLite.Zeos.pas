@@ -34,7 +34,7 @@ type
     function Validate: boolean;
     function GetDefaultDir(aFileName: string): string;
   public
-    constructor Create;
+    constructor Create(aFileName: string = 'config.db');
     destructor Destroy; override;
     function getValue(pKey: string): string;
     procedure UpdateConfig(aJSON: TJSONObject); overload;
@@ -49,15 +49,15 @@ implementation
 
 { TSQLiteConfig }
 
-constructor TSQLiteConfig.Create;
+constructor TSQLiteConfig.Create(aFileName: string = 'config.db');
 begin
   FConn := TZConnection.Create(nil);
   FConn.Protocol := 'sqlite-3';
   {$IFDEF Android}
-  FConn.Database := TPath.Combine(TPath.GetDocumentsPath, 'config.db');
+  FConn.Database := TPath.Combine(TPath.GetDocumentsPath, aFileName);
   {$ENDIF}
   {$IFDEF MSWINDOWS}
-  FConn.Database := ExtractFilePath(ParamStr(0)) + 'config.db';
+  FConn.Database := ExtractFilePath(ParamStr(0)) + aFileName;
   {$ENDIF}
   FConn.Properties.Add('LockingMode=normal');
 
@@ -106,8 +106,7 @@ begin
       SQL.Add('  FROM Config');
       SQL.Add(' WHERE CFG_Key = :CFG_Key');
       if Idx > 0 then
-        SQL.Text := SQL.Text.Replace(':CFG_Key',
-          QuotedStr(Copy(pKey, 0, Idx - 1)))
+        SQL.Text := SQL.Text.Replace(':CFG_Key', QuotedStr(Copy(pKey, 0, Idx - 1)))
       else
         SQL.Text := SQL.Text.Replace(':CFG_Key', QuotedStr(pKey));
 
@@ -192,14 +191,11 @@ begin
         begin
           JSONItem :=
             TJSONObject(TJSONObject.ParseJSONValue
-            (JSONTela.getValue(TValueListEditor(aForm.Components[I])
-            .Name).ToJSON));
+            (JSONTela.getValue(TValueListEditor(aForm.Components[I]).Name).ToJSON));
           if JSONItem <> nil then
-            for J := 1 to pred(TValueListEditor(aForm.Components[I])
-              .RowCount) do
+            for J := 1 to pred(TValueListEditor(aForm.Components[I]).RowCount) do
               TValueListEditor(aForm.Components[I]).Cells[1, J] :=
-                JSONItem.getValue(TValueListEditor(aForm.Components[I])
-                .Keys[J]).Value;
+                JSONItem.getValue(TValueListEditor(aForm.Components[I]).Keys[J]).Value;
           JSONItem.Free;
         end
         {$ENDIF}
@@ -221,8 +217,7 @@ begin
   try
     for I := 0 to pred(aForm.ComponentCount) do
       if aForm.Components[I] is TEdit then
-        JSONTela.AddPair(TEdit(aForm.Components[I]).Name,
-          TEdit(aForm.Components[I]).Text)
+        JSONTela.AddPair(TEdit(aForm.Components[I]).Name, TEdit(aForm.Components[I]).Text)
       else if aForm.Components[I] is TComboBox then
         JSONTela.AddPair(TComboBox(aForm.Components[I]).Name,
           TComboBox(aForm.Components[I]).ItemIndex)
@@ -234,8 +229,8 @@ begin
         JSONTela.AddPair(TDateEdit(aForm.Components[I]).Name,
           TDateEdit(aForm.Components[I]).Text)
       else if aForm.Components[I] is TSwitch then
-        JSONTela.AddPair(TSwitch(aForm.Components[I]).Name,
-          TSwitch(aForm.Components[I]).IsChecked)
+        JSONTela.AddPair(TSwitch(aForm.Components[I]).Name, TSwitch(aForm.Components[I])
+          .IsChecked)
         {$ENDIF}
       else if aForm.Components[I] is TCheckBox then
         JSONTela.AddPair(TCheckBox(aForm.Components[I]).Name,
@@ -271,24 +266,14 @@ begin
   // {"key1":"value1", "key2":"value2", "key3":"value3", "key4":"value4", "key5":"value5"}
   // aJSON.Pairs[i].JSONString.Value = "key1",
   // aJSON.Pairs[i].JSONValue.Value = "value1";
-  for I := 0 to aJSON.Count - 1 do
-    with FDataSet do
-    begin
-      Close;
-      SQL.Clear;
-      SQL.Add('SELECT CFG_Key, CFG_Value');
-      SQL.Add('  FROM Config');
-      SQL.Add(' WHERE CFG_Key = :CFG_Key');
-      ParamByName('CFG_Key').AsString := aJSON.Pairs[I].JsonString.Value;
-      Open;
-      Edit;
-      Fields.Fields[0].AsString := aJSON.Pairs[I].JsonString.Value;
-      Fields.Fields[1].AsString := aJSON.Pairs[I].JsonValue.ToString;
-      Post;
-      if FDataSet.CachedUpdates then
-        ApplyUpdates;
-      Close;
-    end;
+
+  for I := 0 to pred(aJSON.Count) do
+  begin
+    if aJSON.Pairs[I].JsonValue is TJSONObject then
+      UpdateConfig(aJSON.Pairs[I].JsonString.Value, aJSON.Pairs[I].JsonValue.ToJSON)
+    else
+      UpdateConfig(aJSON.Pairs[I].JsonString.Value, aJSON.Pairs[I].JsonValue.Value);
+  end;
 end;
 
 procedure TSQLiteConfig.UpdateConfig(aKey, aValue: string);
@@ -297,17 +282,11 @@ begin
   begin
     Close;
     SQL.Clear;
-    SQL.Add('SELECT CFG_Key, CFG_Value');
-    SQL.Add('  FROM Config');
-    SQL.Add(' WHERE CFG_Key = :CFG_Key');
-    ParamByName('CFG_Key').AsString := aKey;
-    Open;
-    Edit;
-    Fields.Fields[0].AsString := aKey;
-    Fields.Fields[1].AsString := aValue;
-    Post;
-    if FDataSet.CachedUpdates then
-      ApplyUpdates;
+    SQL.Add('INSERT INTO Config (CFG_KEY, CFG_VALUE) ');
+    SQL.Add('VALUES (' + QuotedStr(aKey) + ', ' + QuotedStr(aValue) + ') ');
+    SQL.Add('ON CONFLICT (CFG_KEY) DO UPDATE ');
+    SQL.Add('SET CFG_VALUE = excluded.CFG_VALUE;');
+    ExecSQL;
     Close;
   end;
 end;
@@ -316,12 +295,15 @@ function TSQLiteConfig.ValidaBanco: boolean;
 begin
   Result := False;
   try
-    FDataSet.SQL.Text := 'select count(*) from config';
-    FDataSet.Open;
+    try
+      FDataSet.SQL.Text := 'PRAGMA table_info("Config")';
+      FDataSet.ExecSQL;
+      Result := True;
+    except
+      Result := False;
+    end;
+  finally
     FDataSet.Close;
-    Result := true;
-  except
-    Result := False;
   end;
 end;
 
@@ -339,14 +321,13 @@ begin
         Close;
         SQL.Clear;
         SQL.Add('CREATE TABLE Config(');
-        SQL.Add('  CFG_ID integer primary key');
-        SQL.Add(', CFG_Key varchar');
+        SQL.Add('  CFG_Key varchar not null primary key');
         SQL.Add(', CFG_Value varchar');
         SQL.Add(');');
         ExecSQL;
       end;
     end;
-    Result := true;
+    Result := True;
   except
     Result := False;
   end;

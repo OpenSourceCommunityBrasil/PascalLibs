@@ -150,7 +150,7 @@ begin
     for I := 0 to pred(aForm.ComponentCount) do
     begin
       Component := aForm.Components[I];
-      if JSONTela.Get(Component.Name) <> '' then
+      if JSONTela.Get(Component.Name, '') <> '' then
         if Component is TEdit then
           TEdit(Component).Text := JSONTela.Get(Component.Name, '')
         else if Component is TComboBox then
@@ -186,15 +186,15 @@ begin
     for I := 0 to pred(aForm.ComponentCount) do
     begin
       Component := aForm.Components[I];
-      if component is TEdit then
+      if component.InheritsFrom(TEdit) then
         JSONTela.Add(component.Name, TEdit(component).Text)
-      else if component is TComboBox then
+      else if component.InheritsFrom(TComboBox) then
         JSONTela.Add(component.Name, TComboBox(component).ItemIndex)
-      else if component is TCheckBox then
+      else if component.InheritsFrom(TCheckBox) then
         JSONTela.Add(component.Name, TCheckBox(component).Checked)
-      else if component is TLabeledEdit then
+      else if component.InheritsFrom(TLabeledEdit) then
         JSONTela.Add(component.Name, TLabeledEdit(component).Text)
-      else if component is TValueListEditor then
+      else if component.InheritsFrom(TValueListEditor) then
       begin
         JSONItem := TJSONObject.Create;
         for J := 1 to pred(TValueListEditor(component).RowCount) do
@@ -218,23 +218,12 @@ begin
   // {"key1":"value1", "key2":"value2", "key3":"value3", "key4":"value4", "key5":"value5"}
   // aJSON.Pairs[i].JSONString.Value = "key1",
   // aJSON.Pairs[i].JSONValue.Value = "value1";
-  with FDataSet do
+  for I := 0 to pred(aJSON.Count) do
   begin
-    Close;
-    SQL.Clear;
-    SQL.Add('UPDATE Config');
-    SQL.Add('   SET CFG_Value = ');
-    SQL.Add('  CASE ');
-    for I := 0 to pred(aJSON.Count) do
-      if aJSON.Items[I] is TJSONObject then
-        SQL.Add('  WHEN CFG_KEY = ' + QuotedStr(aJSON.Names[I]) +
-          ' THEN ' + QuotedStr(aJSON.Items[I].AsJSON))
-      else
-        SQL.Add('  WHEN CFG_KEY = ' + QuotedStr(aJSON.Names[I]) +
-          ' THEN ' + QuotedStr(aJSON.Items[I].AsString));
-    SQL.Add('  END ');
-    ExecSQL;
-    Close;
+    if aJSON.Items[I] is TJSONObject then
+      UpdateConfig(aJSON.Names[I], aJSON.Items[I].AsJSON)
+    else
+      UpdateConfig(aJSON.Names[I], aJSON.Items[I].Value);
   end;
 end;
 
@@ -244,17 +233,11 @@ begin
   begin
     Close;
     SQL.Clear;
-    SQL.Add('SELECT CFG_Key, CFG_Value');
-    SQL.Add('  FROM Config');
-    SQL.Add(' WHERE CFG_Key = :CFG_Key');
-    ParamByName('CFG_Key').AsString := aKey;
-    Open;
-    Edit;
-    Fields.Fields[0].AsString := aKey;
-    Fields.Fields[1].AsString := aValue;
-    Post;
-    if FDataSet.CachedUpdates then
-      ApplyUpdates;
+    SQL.Add('INSERT INTO Config (CFG_KEY, CFG_VALUE) ');
+    SQL.Add('VALUES (' + QuotedStr(aKey) + ', ' + QuotedStr(aValue) + ') ');
+    SQL.Add('ON CONFLICT (CFG_KEY) DO UPDATE ');
+    SQL.Add('SET CFG_VALUE = excluded.CFG_VALUE;');
+    ExecSQL;
     Close;
   end;
 end;
@@ -289,8 +272,7 @@ begin
         Close;
         SQL.Clear;
         SQL.Add('CREATE TABLE Config(');
-        SQL.Add('  CFG_ID integer primary key');
-        SQL.Add(', CFG_Key varchar');
+        SQL.Add('  CFG_Key varchar not null primary key');
         SQL.Add(', CFG_Value varchar');
         SQL.Add(');');
         ExecSQL;
