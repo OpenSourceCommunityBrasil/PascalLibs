@@ -6,20 +6,36 @@ unit VCLFormat;
 interface
 
 uses
-  VCL.StdCtrls,
-  System.Classes, System.MaskUtils, System.DateUtils, System.Math,
-  System.SysUtils, System.SysConst, System.TypInfo, System.StrUtils;
+  StdCtrls,
+  Classes, MaskUtils, DateUtils, Math, SysUtils, SysConst, TypInfo, StrUtils;
+
+const
+  csNumbers = ['0' .. '9'];
+  csIntegers = ['0' .. '9', '-'];
+  csCharacters = ['a' .. 'z', 'A' .. 'Z'];
+  csCurrencyDigits = ['0' .. '1', '-', ','];
+  csFormatIdentifier = ['#', 'L', 'l', '9'];
+  csSymbols = ['\', '/', '-', '=', '+', '*', ',', '.', ';', ':', '|', '[', ']', '{', '}',
+    '(', ')', '$', '%', '@', '#', '&', '!', '?', 'ª', 'º', '°', '₢', '£', '¢', '¬',
+    '¨', '§'];
+  csSpecialCharacters: array [0 .. 51] of string = ('á', 'à', 'ã', 'â', 'ä', 'é', 'è',
+    'ê', 'ë', 'í', 'ì', 'ï', 'î', 'ó', 'ò', 'õ', 'ô', 'ö', 'ú', 'ù', 'ü', 'û', 'ç', 'ñ',
+    'ý', 'ÿ', 'Á', 'À', 'Ã', 'Â', 'Ä', 'É', 'È', 'Ê', 'Ë', 'Í', 'Ì', 'Ï', 'Î', 'Ó', 'Ò',
+    'Õ', 'Ô', 'Ö', 'Ú', 'Ù', 'Ü', 'Û', 'Ç', 'Ñ', 'Ý', 'Ÿ');
+  csRegularCharacters: array [0 .. 51] of string = ('a', 'a', 'a', 'a', 'a', 'e', 'e',
+    'e', 'e', 'i', 'i', 'i', 'i', 'o', 'o', 'o', 'o', 'o', 'u', 'u', 'u', 'u', 'c', 'n',
+    'y', 'y', 'A', 'A', 'A', 'A', 'A', 'E', 'E', 'E', 'E', 'I', 'I', 'I', 'I', 'O', 'O',
+    'O', 'O', 'O', 'U', 'U', 'U', 'U', 'C', 'N', 'Y', 'Y');
 
 type
-  TFormato = (&Date, Bits, CEP, CEST, CFOP, CNH, CNPJ, CNPJorCPF, CPF, CREA,
-    CRM, Dinheiro, Hora, hhmm, InscricaoEstadual, NCM, OAB, Personalizado, Peso,
-    Porcentagem, Telefone, TituloEleitor, Valor, VeiculoMercosul,
-    VeiculoTradicional);
+  TFormato = (&Date, Bits, CEP, CEST, CFOP, CNH, CNPJ, CNPJorCPF, CPF, CREA, CRM,
+    Dinheiro, Hora, HoraCurta, InscricaoEstadual, NCM, OAB, Personalizado, Peso,
+    Porcentagem, Telefone, TituloEleitor, Valor, VeiculoMercosul, VeiculoTradicional);
 
   // estados da federação 0..26 = 27 ok
   // TODO: acrescentar código IBGE como índice padrão das siglas para facilidade de acesso
-  TUF = (AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MG, MT, MS, PA, PB, PE, PI, PR,
-    RJ, RN, RO, RR, RS, SC, SE, SP, &TO);
+  TUF = (AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MG, MT, MS, PA, PB, PE, PI, PR, RJ, RN,
+    RO, RR, RS, SC, SE, SP, &TO);
 
   TFormatHelper = class
   private
@@ -43,6 +59,7 @@ type
       : string; overload;
     function Inteiro(aStr: string): string;
     function Primeiros(aStr: string; aDigitos: integer): string;
+    function RemoveAcentos(aStr: string): string;
     function SomenteNumero(aStr: string): string;
     function Ultimos(aStr: string; aDigitos: integer): string;
   end;
@@ -54,6 +71,7 @@ type
     procedure Formatar(aFormato: TFormato); overload;
     procedure Formatar(aFormato: TFormato; ExtraArg: Variant); overload;
     function Inteiro: string;
+    function RemoveAcentos: string;
     function SomenteNumero: string;
   end;
 
@@ -64,6 +82,7 @@ type
     procedure Formatar(aFormato: TFormato); overload;
     procedure Formatar(aFormato: TFormato; ExtraArg: Variant); overload;
     function Inteiro: string;
+    function RemoveAcentos: string;
     function SomenteNumero: string;
   end;
 
@@ -78,24 +97,22 @@ implementation
 /// <returns>Devolve letras e números bem como caracteres acentuados.</returns>
 function TFormatHelper.AlfaNumerico(aStr: string): string;
 var
-  x: integer;
+  I: integer;
 begin
   Result := '';
-  for x := 0 to pred(aStr.Length) do
-    if (aStr.Chars[x] In ['0' .. '9', 'a' .. 'z', 'A' .. 'Z', 'ã', 'á', 'à',
-      'â', 'é', 'ê', 'í', 'ó', 'ô', 'õ', 'ú', 'ç', 'Ã', 'Á', 'À', 'Â', 'É', 'Ê',
-      'Í', 'Ó', 'Õ', 'Ô', 'Ú', 'Ç', ' ']) then
-      Result := Result + aStr.Chars[x];
+  for I := 0 to pred(aStr.Length) do
+    if not CharInSet(aStr.Chars[I], csSymbols) then
+      Result := Result + aStr.Chars[I];
 end;
 
 function TFormatHelper.Decimal(aStr: string): string;
 var
-  x: integer;
+  I: integer;
 begin
   Result := '';
-  for x := 0 to pred(aStr.Length) do
-    if (aStr.Chars[x] In ['0' .. '9', ',', '-']) then
-      Result := Result + aStr.Chars[x];
+  for I := 0 to pred(aStr.Length) do
+    if CharInSet(aStr.Chars[I], csCurrencyDigits) then
+      Result := Result + aStr.Chars[I];
 end;
 
 /// <returns>
@@ -104,23 +121,19 @@ end;
 /// <param name="aPrecisao"> Precisão de decimais ajustável. Valor padrão: 2 </param>
 function TFormatHelper.Decimal(aStr: string; aPrecisao: integer): Double;
 var
-  x: integer;
+  I: integer;
   Valor: string;
 begin
   if aPrecisao < 0 then
     aPrecisao := 2;
 
-  try
-    Valor := '';
-    for x := 0 to pred(aStr.Length) do
-      if (aStr.Chars[x] In ['0' .. '9', ',', '-']) then
-        Valor := Valor + aStr.Chars[x];
+  Valor := '';
+  for I := 0 to pred(aStr.Length) do
+    if CharInSet(aStr.Chars[I], csCurrencyDigits) then
+      Valor := Valor + aStr.Chars[I];
 
-    Result := Format('%.' + aPrecisao.ToString + 'f', [StrToFloatDef(Valor, 0)]
-      ).ToDouble;
-  except
-    Result := Format('%.' + aPrecisao.ToString + 'f', [0]).ToDouble;
-  end;
+  Result := StrToFloatDef(Format('%.' + aPrecisao.ToString + 'f',
+    [StrToFloatDef(Valor, 0)]), 0);
 end;
 
 /// <returns>
@@ -177,8 +190,7 @@ function TFormatHelper.FormataCRM(aStr: integer; UF: TUF): string;
 begin
   if not(aStr = 0) then
     try
-      Result := Format('CRM/%s %.6d',
-        [GetEnumName(TypeInfo(TUF), ord(UF)), aStr]);
+      Result := Format('CRM/%s %.6d', [GetEnumName(TypeInfo(TUF), ord(UF)), aStr]);
       // Mask('CRM/LL ######', GetEnumName(TypeInfo(TUF), ord(UF)) +
       // Primeiros(aStr));
     except
@@ -224,8 +236,7 @@ end;
 /// <returns>
 /// Formata o texto para Dinheiro com precisão de decimais
 /// </returns>
-function TFormatHelper.FormataDinheiro(aStr: string;
-  aPrecisao: integer): string;
+function TFormatHelper.FormataDinheiro(aStr: string; aPrecisao: integer): string;
 begin
   try
     Result := Format('%.' + aPrecisao.ToString + 'm',
@@ -241,8 +252,7 @@ end;
 function TFormatHelper.FormataHoraCurta(aStr: string): string;
 begin
   try
-    if (aStr.IsEmpty) or
-      ((aStr.Length > 1) and (strtoint(Copy(aStr, 0, 2)) > 23)) or
+    if (aStr.IsEmpty) or ((aStr.Length > 1) and (strtoint(Copy(aStr, 0, 2)) > 23)) or
       ((aStr.Length > 3) and (strtoint(Copy(aStr, 3, 2)) > 59)) then
       Result := ''
     else
@@ -258,8 +268,7 @@ end;
 function TFormatHelper.FormataHora(aStr: string): string;
 begin
   try
-    if (aStr.IsEmpty) or
-      ((aStr.Length > 1) and (strtoint(Copy(aStr, 0, 2)) > 23)) or
+    if (aStr.IsEmpty) or ((aStr.Length > 1) and (strtoint(Copy(aStr, 0, 2)) > 23)) or
       ((aStr.Length > 3) and (strtoint(Copy(aStr, 3, 2)) > 59)) or
       ((aStr.Length > 5) and (strtoint(Copy(aStr, 5, 2)) > 59)) then
       Result := ''
@@ -355,8 +364,7 @@ end;
 /// <returns>
 /// Formata o texto em um número com 3 casas decimais
 /// </returns>
-function TFormatHelper.FormataPeso(aStr: string;
-  aSeparador: boolean = false): string;
+function TFormatHelper.FormataPeso(aStr: string; aSeparador: boolean = false): string;
 begin
   try
     if aSeparador then
@@ -415,7 +423,7 @@ begin
       Texto := Mask('999999999-9', SomenteNumero(Texto));
 
     CRM:
-      Texto := FormataCRM(Ultimos(SomenteNumero(Texto), 6).ToInteger, ExtraArg);
+      Texto := FormataCRM(StrToIntDef(Ultimos(SomenteNumero(Texto), 6), 0), ExtraArg);
 
     Dinheiro:
       if ExtraArg <> varNull then
@@ -426,7 +434,7 @@ begin
     Hora:
       Texto := FormataHora(SomenteNumero(Texto));
 
-    hhmm:
+    HoraCurta:
       Texto := FormataHoraCurta(SomenteNumero(Texto));
 
     InscricaoEstadual:
@@ -436,7 +444,7 @@ begin
       Texto := Mask('9999.99.99', SomenteNumero(Texto));
 
     OAB:
-      Texto := FormataOAB(Ultimos(SomenteNumero(Texto), 6).ToInteger, ExtraArg);
+      Texto := FormataOAB(StrToIntDef(Ultimos(SomenteNumero(Texto), 6), 0), ExtraArg);
 
     Personalizado:
       Texto := Mask(ExtraArg, SomenteNumero(Texto));
@@ -445,7 +453,7 @@ begin
       Texto := FormataPeso(SomenteNumero(Texto));
 
     Porcentagem:
-      Texto := Format('%.2f %s', [Decimal(Texto, 2), '%']);
+      Texto := Format('%.2f %%', [Decimal(Texto, 2)]);
 
     Telefone:
       if Length(SomenteNumero(Texto)) <= 10 then
@@ -489,12 +497,12 @@ end;
 /// </returns>
 function TFormatHelper.Inteiro(aStr: string): string;
 var
-  x: integer;
+  I: integer;
 begin
   Result := '';
-  for x := 0 to Length(aStr) - 1 do
-    if (aStr.Chars[x] In ['0' .. '9', '-']) then
-      Result := Result + aStr.Chars[x];
+  for I := 0 to Length(aStr) - 1 do
+    if (aStr.Chars[I] In ['0' .. '9', '-']) then
+      Result := Result + aStr.Chars[I];
 end;
 
 /// <returns>
@@ -520,25 +528,25 @@ begin
         Result := Result + aStr.Chars[textidx];
         inc(textidx);
       end
-      else if (Mascara.Chars[maskidx] = 'L') and
-        (aStr.Chars[textidx] in ['a' .. 'z', 'A' .. 'Z']) then
+      else if (Mascara.Chars[maskidx] = 'L') and CharInSet(aStr.Chars[textidx],
+        csCharacters) then
       begin
         Result := Result + UpperCase(aStr.Chars[textidx]);
         inc(textidx);
       end
-      else if (Mascara.Chars[maskidx] = 'l') and
-        (aStr.Chars[textidx] in ['a' .. 'z', 'A' .. 'Z']) then
+      else if (Mascara.Chars[maskidx] = 'l') and CharInSet(aStr.Chars[textidx],
+        csCharacters) then
       begin
         Result := Result + LowerCase(aStr.Chars[textidx]);
         inc(textidx);
       end
-      else if (Mascara.Chars[maskidx] = '9') and
-        (aStr.Chars[textidx] in ['0' .. '9']) then
+      else if (Mascara.Chars[maskidx] = '9') and CharInSet(aStr.Chars[textidx], csNumbers)
+      then
       begin
         Result := Result + aStr.Chars[textidx];
         inc(textidx);
       end
-      else if not(Mascara.Chars[maskidx] in ['#', 'L', 'l', '9']) then
+      else if not CharInSet(Mascara.Chars[maskidx], csFormatIdentifier) then
         Result := Result + Mascara.Chars[maskidx];
 
       if textidx = Length(aStr) then
@@ -555,17 +563,27 @@ begin
     Result := Copy(aStr, 1, aDigitos);
 end;
 
+function TFormatHelper.RemoveAcentos(aStr: string): string;
+var
+  I: integer;
+begin
+  Result := aStr;
+  for I := 0 to pred(Length(csSpecialCharacters)) do
+    Result := StringReplace(Result, csSpecialCharacters[I], csRegularCharacters[I],
+      [rfReplaceAll]);
+end;
+
 /// <returns>
 /// Devolve somente os números contidos no texto
 /// </returns>
 function TFormatHelper.SomenteNumero(aStr: string): string;
 var
-  x: integer;
+  I: integer;
 begin
   Result := '';
-  for x := 0 to Length(aStr) - 1 do
-    if (aStr.Chars[x] In ['0' .. '9']) then
-      Result := Result + aStr.Chars[x];
+  for I := 0 to Length(aStr) - 1 do
+    if (aStr.Chars[I] In ['0' .. '9']) then
+      Result := Result + aStr.Chars[I];
 end;
 
 /// <returns>
@@ -601,6 +619,11 @@ function TEditHelper.Inteiro: string;
 begin
   Result := Formato.Inteiro(Self.Text);
   Self.SelStart := Length(Self.Text);
+end;
+
+function TEditHelper.RemoveAcentos: string;
+begin
+  Result := Formato.RemoveAcentos(Self.Text);
 end;
 
 procedure TEditHelper.Formatar(aFormato: TFormato; ExtraArg: Variant);
@@ -640,6 +663,11 @@ end;
 function TLabelHelper.Inteiro: string;
 begin
   Result := Formato.Inteiro(Self.Caption);
+end;
+
+function TLabelHelper.RemoveAcentos: string;
+begin
+  Result := Formato.RemoveAcentos(Self.Caption);
 end;
 
 function TLabelHelper.SomenteNumero: string;

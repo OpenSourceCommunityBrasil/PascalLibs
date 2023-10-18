@@ -5,7 +5,9 @@ unit LCLFormat;
 
 {$codepage UTF8}
 {$MODE Delphi}
-{$IFNDEF DEBUG}{$hints off}{$ENDIF}
+{$ifopt D-}
+{$hints off}
+{$IFEND}
 
 interface
 
@@ -13,16 +15,24 @@ uses
   StdCtrls, Classes, DateUtils, Math, SysUtils, TypInfo, StrUtils;
 
 const
-  csDigitos = ['0'..'9'];
-  csLetras = ['a'..'z', 'A'..'Z'];
-  csSimbolos = ['\', '/', '-', '=', '+', '*', ',', '.', ';', ':',
-    '|', '[', ']', '{', '}', '(', ')', '$', '%', '@', '#', '&', '!', '?'];
-  csSimbolosMon = ['-', '+', ',', '.'];
-
-  // Lazarus issue: set in current version is only 0..254 and can't hold unicode chars
-  csEspeciais: array of widechar =
-    ['ã', 'á', 'à', 'â', 'é', 'ê', 'í', 'ó', 'ô', 'õ', 'ú',
-    'ç', 'Ã', 'Á', 'À', 'Â', 'É', 'Ê', 'Í', 'Ó', 'Õ', 'Ô', 'Ú', 'Ç'];
+  csNumbers = ['0' .. '9'];
+  csIntegers = ['0' .. '9', '-'];
+  csCharacters = ['a' .. 'z', 'A' .. 'Z'];
+  csCurrencyDigits = ['0' .. '1', '-', ','];
+  csFormatIdentifier = ['#', 'L', 'l', '9'];
+  csSymbols: array[0..32] of string = ('\', '/', '-', '=', '+', '*', ',', '.', ';', ':',
+    '|', '[', ']', '{', '}', '(', ')', '$', '%', '@', '#', '&', '!',
+    '?', 'ª', 'º', '°', '₢', '£', '¢', '¬', '¨', '§');
+  csSpecialCharacters: array[0..51] of string =
+    ('á', 'à', 'ã', 'â', 'ä', 'é', 'è', 'ê', 'ë', 'í', 'ì', 'ï', 'î',
+    'ó', 'ò', 'õ', 'ô', 'ö', 'ú', 'ù', 'ü', 'û', 'ç', 'ñ', 'ý', 'ÿ',
+    'Á', 'À', 'Ã', 'Â', 'Ä', 'É', 'È', 'Ê', 'Ë', 'Í', 'Ì', 'Ï', 'Î',
+    'Ó', 'Ò', 'Õ', 'Ô', 'Ö', 'Ú', 'Ù', 'Ü', 'Û', 'Ç', 'Ñ', 'Ý', 'Ÿ');
+  csRegularCharacters: array[0..51] of string =
+    ('a', 'a', 'a', 'a', 'a', 'e', 'e', 'e', 'e', 'i', 'i', 'i', 'i',
+    'o', 'o', 'o', 'o', 'o', 'u', 'u', 'u', 'u', 'c', 'n', 'y', 'y',
+    'A', 'A', 'A', 'A', 'A', 'E', 'E', 'E', 'E', 'I', 'I', 'I', 'I',
+    'O', 'O', 'O', 'O', 'O', 'U', 'U', 'U', 'U', 'C', 'N', 'Y', 'Y');
 
 type
   TFormato = (&Date, Bits, CEP, CEST, CFOP, CNH, CNPJ, CNPJorCPF, CPF, CREA,
@@ -59,9 +69,12 @@ type
       overload;
     function Inteiro(aStr: string): string;
     function Primeiros(aStr: string; aDigitos: integer): string;
+    function RemoveAcentos(aStr: string): string;
     function SomenteNumero(aStr: string): string;
     function Ultimos(aStr: string; aDigitos: integer): string;
   end;
+
+  { TEditHelper }
 
   TEditHelper = class helper for TEdit
   public
@@ -70,16 +83,20 @@ type
     procedure Formatar(aFormato: TFormato); overload;
     procedure Formatar(aFormato: TFormato; ExtraArg: variant); overload;
     function Inteiro: string;
+    function RemoveAcentos: string;
     function SomenteNumero: string;
   end;
+
+  { TLabelHelper }
 
   TLabelHelper = class helper for TLabel
   public
     function AlfaNumerico: string;
     function Decimal: string;
-    procedure Formatar(aFormato: TFormato); overload;
-    procedure Formatar(aFormato: TFormato; ExtraArg: variant); overload;
+    procedure Formatar(aFormato: TFormato; Texto: string); overload;
+    procedure Formatar(aFormato: TFormato; Texto: string; ExtraArg: variant); overload;
     function Inteiro: string;
+    function RemoveAcentos: string;
     function SomenteNumero: string;
   end;
 
@@ -94,27 +111,22 @@ implementation
 /// <returns>Devolve letras e números bem como caracteres acentuados.</returns>
 function TFormatHelper.AlfaNumerico(aStr: string): string;
 var
-  I, C: integer;
+  I: integer;
 begin
   Result := '';
-  for C := 0 to pred(LengtH(aStr)) do
-  begin
-    if CharInSet(aStr[C], csDigitos) or (aStr[C] in csLetras) or (aStr[C] = ' ') then
-      Result := Result + aStr[C];
-
-    for I := 0 to pred(Length(csEspeciais)) do
-      if aStr[C] = csEspeciais[I] then Result := Result + aStr[C];
-  end;
+  for I := 0 to pred(Length(aStr)) do
+    if not (aStr[I] in csSymbols) then
+      Result := Result + aStr[I];
 end;
 
 function TFormatHelper.Decimal(aStr: string): string;
 var
-  x: integer;
+  I: integer;
 begin
   Result := '';
-  for x := 0 to pred(aStr.Length) do
-    if CharInSet(aStr.Chars[x], csDigitos + [',', '-']) then
-      Result := Result + aStr.Chars[x];
+  for I := 0 to pred(aStr.Length) do
+    if CharInSet(aStr.Chars[I], csCurrencyDigits) then
+      Result := Result + aStr.Chars[I];
 end;
 
 /// <returns>
@@ -123,24 +135,20 @@ end;
 /// <param name="aPrecisao"> Precisão de decimais ajustável. Valor padrão: 2 </param>
 function TFormatHelper.Decimal(aStr: string; aPrecisao: integer): double;
 var
-  x: integer;
+  I: integer;
   Valor: string;
 begin
   if aPrecisao < 0 then
     aPrecisao := 2;
 
   Result := 0;
-  try
-    Valor := '';
-    for x := 0 to pred(aStr.Length) do
-      if CharInSet(aStr.Chars[x], csDigitos + [',', '-']) then
-        Valor := Valor + aStr.Chars[x];
+  Valor := '';
+  for I := 0 to pred(aStr.Length) do
+    if CharInSet(aStr.Chars[I], csCurrencyDigits) then
+      Valor := Valor + aStr.Chars[I];
 
-    Result := StrToFloat(Format('%.' + IntToStr(aPrecisao) + 'f',
-      [StrToFloatDef(Valor, 0)]));
-  except
-    Result := StrToFloat(Format('%.' + IntToStr(aPrecisao) + 'f', [0]));
-  end;
+  Result := StrToFloatDef(Format('%.' + IntToStr(aPrecisao) + 'f',
+    [StrToFloatDef(Valor, 0)]), 0);
 end;
 
 /// <returns>
@@ -401,8 +409,8 @@ begin
       Texto := FormataData(SomenteNumero(Texto));
 
     Bits:
-      raise Exception.Create('Recurso em implementação');
-    //Texto := FormataBits(SomenteNumero(Texto));
+      //raise Exception.Create('Recurso em implementação');
+      Texto := FormataBits(Decimal(Texto));
 
     CEP:
       Texto := Mask('99.999-999', SomenteNumero(Texto));
@@ -462,7 +470,7 @@ begin
       Texto := FormataPeso(SomenteNumero(Texto));
 
     Porcentagem:
-      Texto := Format('%.2f %%', [StrToIntDef(SomenteNumero(Texto), 0)/100]);
+      Texto := Format('%.2f %%', [Decimal(Texto, 2)]);
 
     Telefone:
       if Length(SomenteNumero(Texto)) <= 10 then
@@ -506,12 +514,12 @@ end;
 /// </returns>
 function TFormatHelper.Inteiro(aStr: string): string;
 var
-  x: integer;
+  I: integer;
 begin
   Result := '';
-  for x := 0 to Length(aStr) - 1 do
-    if CharInSet(aStr.Chars[x], csDigitos + ['-']) then
-      Result := Result + aStr.Chars[x];
+  for I := 0 to Length(aStr) - 1 do
+    if CharInSet(aStr.Chars[I], csIntegers) then
+      Result := Result + aStr.Chars[I];
 end;
 
 /// <returns>
@@ -538,24 +546,24 @@ begin
         Inc(textidx);
       end
       else if (Mascara.Chars[maskidx] = 'L') and
-        CharInSet(aStr.Chars[textidx], csLetras) then
+        CharInSet(aStr.Chars[textidx], csCharacters) then
       begin
         Result := Result + UpperCase(aStr.Chars[textidx]);
         Inc(textidx);
       end
       else if (Mascara.Chars[maskidx] = 'l') and
-        CharInSet(aStr.Chars[textidx], csLetras) then
+        CharInSet(aStr.Chars[textidx], csCharacters) then
       begin
         Result := Result + LowerCase(aStr.Chars[textidx]);
         Inc(textidx);
       end
       else if (Mascara.Chars[maskidx] = '9') and
-        CharInSet(aStr.Chars[textidx], csDigitos) then
+        CharInSet(aStr.Chars[textidx], csNumbers) then
       begin
         Result := Result + aStr.Chars[textidx];
         Inc(textidx);
       end
-      else if not CharInSet(Mascara.Chars[maskidx], ['#', 'L', 'l', '9']) then
+      else if not CharInSet(Mascara.Chars[maskidx], csFormatIdentifier) then
         Result := Result + Mascara.Chars[maskidx];
 
       if textidx = Length(aStr) then
@@ -572,17 +580,27 @@ begin
     Result := Copy(aStr, 1, aDigitos);
 end;
 
+function TFormatHelper.RemoveAcentos(aStr: string): string;
+var
+  I: integer;
+begin
+  Result := aStr;
+  for I := 0 to pred(Length(csSpecialCharacters)) do
+    Result := StringReplace(Result, csSpecialCharacters[I],
+      csRegularCharacters[I], [rfReplaceAll]);
+end;
+
 /// <returns>
 /// Devolve somente os números contidos no texto
 /// </returns>
 function TFormatHelper.SomenteNumero(aStr: string): string;
 var
-  x: integer;
+  I: integer;
 begin
   Result := '';
-  for x := 0 to Length(aStr) - 1 do
-    if CharInSet(aStr.Chars[x], csDigitos) then
-      Result := Result + aStr.Chars[x];
+  for I := 0 to Length(aStr) - 1 do
+    if CharInSet(aStr.Chars[I], csNumbers) then
+      Result := Result + aStr.Chars[I];
 end;
 
 /// <returns>
@@ -620,6 +638,11 @@ begin
   Self.SelStart := Length(Self.Text);
 end;
 
+function TEditHelper.RemoveAcentos: string;
+begin
+  Result := formato.RemoveAcentos(Self.Text);
+end;
+
 procedure TEditHelper.Formatar(aFormato: TFormato; ExtraArg: variant);
 begin
   Self.Text := Formato.Formatar(aFormato, Self.Text, ExtraArg);
@@ -644,19 +667,24 @@ begin
   Result := Formato.Decimal(Self.Caption);
 end;
 
-procedure TLabelHelper.Formatar(aFormato: TFormato);
+procedure TLabelHelper.Formatar(aFormato: TFormato; Texto: string);
 begin
-  Self.Caption := Formato.Formatar(aFormato, Self.Caption, varNull);
+  Self.Caption := Formato.Formatar(aFormato, Texto, varNull);
 end;
 
-procedure TLabelHelper.Formatar(aFormato: TFormato; ExtraArg: variant);
+procedure TLabelHelper.Formatar(aFormato: TFormato; Texto: string; ExtraArg: variant);
 begin
-  Self.Caption := Formato.Formatar(aFormato, Self.Caption, ExtraArg);
+  Self.Caption := Formato.Formatar(aFormato, Texto, ExtraArg);
 end;
 
 function TLabelHelper.Inteiro: string;
 begin
   Result := Formato.Inteiro(Self.Caption);
+end;
+
+function TLabelHelper.RemoveAcentos: string;
+begin
+  Result := Formato.RemoveAcentos(Self.Caption);
 end;
 
 function TLabelHelper.SomenteNumero: string;
