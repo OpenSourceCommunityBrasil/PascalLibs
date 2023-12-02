@@ -33,6 +33,7 @@ type
     FDataSet: TZQuery;
     function Validate: boolean;
     function GetDefaultDir(aFileName: string): string;
+	function isJSON(aJSON: string): boolean;
   public
     constructor Create(aFileName: string = 'config.db');
     destructor Destroy; override;
@@ -132,6 +133,11 @@ begin
   end;
 end;
 
+function TSQLiteConfig.isJSON(aJSON: string): boolean;
+begin
+  Result := ((pos('{', aJSON) > 0) or (pos('[', aJSON) > 0)) and (pos('"', aJSON) > 0);
+end;
+
 function TSQLiteConfig.LoadConfig: TJSONObject;
 begin
   Result := TJSONObject.Create;
@@ -144,8 +150,10 @@ begin
     Open;
     while not Eof do
     begin
-      Result.AddPair(Fields.Fields[0].AsString,
-        TJSONObject.ParseJSONValue(Fields.Fields[1].AsString));
+      if isJSON(Fields.Fields[1].AsString) then
+        Result.AddPair(Fields.Fields[0].AsString, TJSONObject.ParseJSONValue(Fields.Fields[1].AsString))
+      else
+        Result.AddPair(Fields.Fields[0].AsString, Fields.Fields[1].AsString);
       Next;
     end;
     Close;
