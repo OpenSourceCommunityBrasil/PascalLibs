@@ -48,6 +48,7 @@ type
     procedure SaveForm(aForm: TForm);
     procedure LoadForm(aForm: TForm);
     function ValidaBanco: boolean;
+    procedure ClearDatabase;
   end;
 
 var
@@ -56,6 +57,13 @@ var
 implementation
 
 { TSQLiteConfig }
+
+procedure TSQLiteConfig.ClearDatabase;
+begin
+  FDataSet.ExecSQL('DROP TABLE IF EXISTS Config');
+  Validate;
+end;
+
 constructor TSQLiteConfig.Create(aFileName: string = 'config.db');
 begin
 {$IFDEF MSWINDOWS} // android já possui a dll instalada
@@ -181,36 +189,45 @@ begin
   try
     for I := 0 to pred(aForm.ComponentCount) do
     begin
-        component := aForm.Components[I];
+      component := aForm.Components[I];
       if JSONTela.getValue(component.Name) <> nil then
-      if (component.Name <> EmptyStr) and (component.Tag <> -1) then
-        if (component is TEdit) then
-          TEdit(component).Text := JSONTela.getValue(TEdit(component).Name).Value
-        else if (component is TComboBox) then
-          TComboBox(component).ItemIndex := JSONTela.getValue(TComboBox(component).Name).Value.ToInteger
+        if (component.Name <> EmptyStr) and (component.Tag <> -1) then
+          if (component is TEdit) then
+            TEdit(component).Text :=
+              JSONTela.getValue(TEdit(component).Name).Value
+          else if (component is TComboBox) then
+            TComboBox(component).ItemIndex :=
+              JSONTela.getValue(TComboBox(component).Name).Value.ToInteger
 {$IFDEF HAS_FMX}
-        else if (component is TComboEdit) then
-          TComboEdit(component).ItemIndex := JSONTela.getValue(TComboEdit(component).Name).Value.ToInteger
-        else if (component is TDateEdit) then
-          TDateEdit(component).Text := JSONTela.getValue(TDateEdit(component).Name).Value
-        else if (component is TSwitch) then
-          TSwitch(component).IsChecked := JSONTela.getValue(TSwitch(component).Name).Value.ToBoolean
+          else if (component is TComboEdit) then
+            TComboEdit(component).ItemIndex :=
+              JSONTela.getValue(TComboEdit(component).Name).Value.ToInteger
+          else if (component is TDateEdit) then
+            TDateEdit(component).Text :=
+              JSONTela.getValue(TDateEdit(component).Name).Value
+          else if (component is TSwitch) then
+            TSwitch(component).IsChecked :=
+              JSONTela.getValue(TSwitch(component).Name).Value.ToBoolean
 {$ENDIF}
-        else if (component is TCheckBox) then
-          TCheckBox(component).{$IFDEF HAS_FMX}IsChecked{$ELSE}Checked{$ENDIF} := JSONTela.GetValue(TCheckBox(component).Name).Value.ToBoolean
+          else if (component is TCheckBox) then
+            TCheckBox(component).{$IFDEF HAS_FMX}IsChecked{$ELSE}Checked{$ENDIF} := JSONTela.getValue(TCheckBox(component).Name).Value.ToBoolean
 {$IFNDEF HAS_FMX}
-        else if component is TLabeledEdit then
-          TLabeledEdit(component).Text := JSONTela.getValue(TLabeledEdit(component).Name).Value
-        else if (component is TValueListEditor) then
-        begin
-          JSONItem := TJSONObject(TJSONObject.ParseJSONValue(JSONTela.getValue(TValueListEditor(component).Name).ToJSON));
-          if JSONItem <> nil then
-            for J := 1 to pred(TValueListEditor(component).RowCount) do
-              TValueListEditor(component).Cells[1, J] := JSONItem.getValue(TValueListEditor(component).Keys[J]).Value;
-          JSONItem.Free;
-        end
+          else if component is TLabeledEdit then
+            TLabeledEdit(component).Text :=
+              JSONTela.getValue(TLabeledEdit(component).Name).Value
+          else if (component is TValueListEditor) then
+          begin
+            JSONItem :=
+              TJSONObject(TJSONObject.ParseJSONValue
+              (JSONTela.getValue(TValueListEditor(component).Name).ToJSON));
+            if JSONItem <> nil then
+              for J := 1 to pred(TValueListEditor(component).RowCount) do
+                TValueListEditor(component).Cells[1, J] :=
+                  JSONItem.getValue(TValueListEditor(component).Keys[J]).Value;
+            JSONItem.Free;
+          end
 {$ENDIF}
-          ;
+            ;
     end;
   finally
     JSONTela.Free;
@@ -244,7 +261,8 @@ begin
         JSONTela.AddPair(TSwitch(component).Name, TSwitch(component).IsChecked)
 {$ENDIF}
       else if component is TCheckBox then
-        JSONTela.AddPair(TCheckBox(component).Name, TCheckBox(component).{$IFDEF HAS_FMX}IsChecked{$ELSE}Checked{$ENDIF})
+        JSONTela.AddPair(TCheckBox(component).Name,
+          TCheckBox(component).{$IFDEF HAS_FMX}IsChecked{$ELSE}Checked{$ENDIF})
 {$IFNDEF HAS_FMX}
       else if component is TLabeledEdit then
         JSONTela.AddPair(TLabeledEdit(component).Name, TLabeledEdit(component).Text)
@@ -252,8 +270,10 @@ begin
       begin
         JSONItem := TJSONObject.Create;
         for J := 1 to pred(TValueListEditor(component).RowCount) do
-          JSONItem.AddPair(TValueListEditor(component).Keys[J], TValueListEditor(component).Cells[1, J]);
-        JSONTela.AddPair(TValueListEditor(component).Name, TJSONObject.ParseJSONValue(JSONItem.ToJSON));
+          JSONItem.AddPair(TValueListEditor(component).Keys[J],
+            TValueListEditor(component).Cells[1, J]);
+        JSONTela.AddPair(TValueListEditor(component).Name,
+          TJSONObject.ParseJSONValue(JSONItem.ToJSON));
         JSONItem.Free;
       end
 {$ENDIF}

@@ -33,11 +33,23 @@ type
     procedure SaveForm(aForm: TForm);
     procedure LoadForm(aForm: TForm);
     function ValidaBanco: boolean;
+    procedure ClearDatabase;
   end;
 
 implementation
 
 { TSQLiteConfig }
+
+procedure TSQLiteConfig.ClearDatabase;
+begin
+  with FDataSet do
+  begin
+    SQL.Clear;
+    SQL.Add('DROP TABLE IF EXISTS Config');  
+    ExecSQL;
+  end;
+  Validate;
+end;
 
 constructor TSQLiteConfig.Create(aFileName: string);
 begin
