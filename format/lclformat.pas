@@ -1,4 +1,4 @@
-// Maiores Informações
+﻿// Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
 
 unit LCLFormat;
@@ -35,7 +35,7 @@ const
     'O', 'O', 'O', 'O', 'O', 'U', 'U', 'U', 'U', 'C', 'N', 'Y', 'Y');
 
 type
-  TFormato = (&Date, Bits, CEP, CEST, CFOP, CNH, CNPJ, CNPJorCPF, CPF, CREA,
+  TFormato = (None, &Date, Bits, CEP, CEST, CFOP, CNH, CNPJ, CNPJorCPF, CPF, CREA,
     CRM, Dinheiro, Hora, HoraCurta, InscricaoEstadual, NCM, OAB, Personalizado, Peso,
     Porcentagem, Telefone, TituloEleitor, Valor, VeiculoMercosul,
     VeiculoTradicional);
@@ -405,6 +405,9 @@ function TFormatHelper.Formatar(Formato: TFormato; Texto: string;
   ExtraArg: variant): string;
 begin
   case Formato of
+    None:
+      Texto := AlfaNumerico(Texto);
+
     &Date:
       Texto := FormataData(SomenteNumero(Texto));
 
@@ -580,6 +583,9 @@ begin
     Result := Copy(aStr, 1, aDigitos);
 end;
 
+/// <returns>
+/// Devolve o texto sem acentuação mantendo os outros caracteres.
+/// </returns>
 function TFormatHelper.RemoveAcentos(aStr: string): string;
 var
   I: integer;

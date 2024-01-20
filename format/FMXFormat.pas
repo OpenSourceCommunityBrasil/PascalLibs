@@ -28,7 +28,7 @@ const
     'O', 'O', 'O', 'U', 'U', 'U', 'U', 'C', 'N', 'Y', 'Y');
 
 type
-  TFormato = (&Date, Bits, CEP, CEST, CFOP, CNH, CNPJ, CNPJorCPF, CPF, CREA, CRM,
+  TFormato = (None, &Date, Bits, CEP, CEST, CFOP, CNH, CNPJ, CNPJorCPF, CPF, CREA, CRM,
     Dinheiro, Hora, HoraCurta, InscricaoEstadual, NCM, OAB, Personalizado, Peso,
     Porcentagem, Telefone, TituloEleitor, Valor, VeiculoMercosul, VeiculoTradicional);
 
@@ -400,6 +400,9 @@ function TFormatHelper.Formatar(Formato: TFormato; Texto: string;
   ExtraArg: Variant): string;
 begin
   case Formato of
+    None:
+      Texto := AlfaNumerico(Texto);
+
     &Date:
       Texto := FormataData(SomenteNumero(Texto));
 
