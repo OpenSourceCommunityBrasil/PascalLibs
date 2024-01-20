@@ -8,10 +8,31 @@ unit Log.SQLite.Zeos;
 interface
 
 uses
-  ZConnection, ZDataSet, DB,
-  SysUtils, fpJSON;
+  SysUtils, Classes, fpJSON, DB,
+  ZConnection, ZDataSet, ZSqlProcessor;
 
 type
+
+  TLog = class;
+
+  { TThreadedLog }
+
+  TThreadedLog = class(TThread)
+  private
+    FFileName: string;
+    FLogObject: TJSONObject;
+    FLog: TLog;
+    procedure SetFileName(AValue: string);
+    procedure SetLogObject(AValue: TJSONObject);
+  protected
+    procedure Execute; override;
+    property FileName: string read FFileName write SetFileName;
+    property LogObject: TJSONObject read FLogObject write SetLogObject;
+  public
+    constructor Create(AFileName: string; ALogObject: TJSONObject = nil); overload;
+    constructor Create(AFileName: string; ASection, AValue: string); overload;
+    destructor Destroy; override;
+  end;
 
   { TLog }
 
@@ -19,10 +40,11 @@ type
   private
     FQuery: TZQuery;
     FConn: TZConnection;
+    FThread: TThreadedLog;
     function ValidaBanco: boolean;
     function GetDefaultDir(aFileName: string): string;
   public
-    constructor Create(aFileName: string = '');
+    constructor Create(aFileName: string = 'log.db');
     destructor Destroy; override;
     procedure Log(aJSON: TJSONObject); overload;
     procedure Log(aEvent, aValue: string); overload;
@@ -36,18 +58,71 @@ type
 
 implementation
 
+{ TThreadedLog }
+
+procedure TThreadedLog.SetFileName(AValue: string);
+begin
+  if FFileName = AValue then Exit;
+  FFileName := AValue;
+end;
+
+procedure TThreadedLog.SetLogObject(AValue: TJSONObject);
+begin
+  if FLogObject = AValue then Exit;
+  FLogObject := AValue;
+end;
+
+constructor TThreadedLog.Create(AFileName: string; ALogObject: TJSONObject);
+begin
+  inherited Create(False);
+  FreeOnTerminate := True;
+  FileName := AFileName;
+  if not Assigned(FLog) then
+    FLog := TLog.Create(AFileName);
+
+  if ALogObject <> nil then
+    LogObject := ALogObject;
+end;
+
+constructor TThreadedLog.Create(AFileName: string; ASection, AValue: string);
+begin
+  inherited Create(False);
+  FreeOnTerminate := True;
+  FileName := AFileName;
+  if not Assigned(FLog) then
+    FLog := TLog.Create(AFileName);
+
+  if not Assigned(LogObject) then
+    LogObject := TJSONObject.Create;
+  LogObject.Add('LOG_Data', DateTimeToStr(now));
+  LogObject.Add('LOG_Evento', ASection);
+  LogObject.Add('LOG_Conteudo', AValue);
+end;
+
+destructor TThreadedLog.Destroy;
+begin
+  if Assigned(FLog) then FLog.Free;
+  inherited Destroy;
+end;
+
+procedure TThreadedLog.Execute;
+begin
+  FLog.Log(LogObject);
+end;
+
 { TLog }
 
 constructor TLog.Create(aFileName: string);
+var
+  zsqlproc: TZSQLProcessor;
 begin
   FConn := TZConnection.Create(nil);
   FConn.Protocol := 'sqlite-3';
-  if aFileName.IsEmpty then
-    FConn.Database := ExtractFilePath(ParamStr(0)) + 'log.db'
-  else
-    FConn.Database := ExtractFilePath(ParamStr(0)) + aFileName;
-  FConn.Properties.Add('LockingMode=normal');
+  FConn.Database := ExtractFilePath(ParamStr(0)) + aFileName;
   FConn.LibraryLocation := GetDefaultDir('sqlite3.dll');
+  FConn.Connect;
+  FConn.ExecuteDirect('PRAGMA locking_mode=NORMAL');
+  FConn.ExecuteDirect('PRAGMA journal_mode=OFF');
 
   FQuery := TZQuery.Create(nil);
   FQuery.Connection := FConn;
@@ -76,21 +151,6 @@ begin
     Result := DefaultDir + '\' + aFileName;
 end;
 
-function TLog.getLog: string;
-begin
-  with FQuery do
-  begin
-    Close;
-    SQL.Clear;
-    SQL.Add('SELECT *');
-    SQL.Add('  FROM Log');
-    Open;
-    Result := FQuery.ToJSON;
-
-    Close;
-  end;
-end;
-
 procedure TLog.Log(aEvent, aValue: string);
 var
   aJSON: TJSONObject;
@@ -103,6 +163,26 @@ begin
     Log(aJSON);
   finally
     aJSON.Free;
+  end;
+end;
+
+function TLog.getLog: string;
+begin
+  with FQuery do
+  begin
+    ReadOnly := True;
+    Close;
+    SQL.Clear;
+    SQL.Add('SELECT ');
+    SQL.Add('  LOG_ID ');
+    SQL.Add(', CAST(LOG_Data AS VARCHAR) LOG_Data');
+    SQL.Add(', LOG_Evento');
+    SQL.Add(', LOG_Conteudo');
+    SQL.Add('  FROM Log');
+    Open;
+    Result := FQuery.ToJSON;
+    Close;
+    ReadOnly := False;
   end;
 end;
 
@@ -147,7 +227,7 @@ begin
         SQL.Clear;
         SQL.Add('CREATE TABLE Log(');
         SQL.Add('  LOG_ID integer primary key');
-        SQL.Add(', LOG_Data timestamp');
+        SQL.Add(', LOG_Data varchar');
         SQL.Add(', LOG_Evento varchar');
         SQL.Add(', LOG_Conteudo varchar');
         SQL.Add(');');
@@ -174,8 +254,11 @@ begin
     begin
       JSONObj := TJSONObject.Create;
       for I := 0 to pred(FieldCount) do
+      begin
         if not Fields.Fields[I].AsString.IsEmpty then
           JSONObj.Add(Fields.Fields[I].FieldName, Fields.Fields[I].AsString);
+
+      end;
       JSONArr.Add(JSONObj);
       Next;
     end;
