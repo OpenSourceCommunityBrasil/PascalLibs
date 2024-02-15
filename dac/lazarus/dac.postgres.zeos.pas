@@ -19,15 +19,13 @@ type
     FConnection: TZConnection;
     FQuery: TZQuery;
     FSchema: string;
-    function GetDefaultDir(aFileName: string): string;
+    function GetDefaultLibDir: string;
   public
     constructor Create(aJSON: TJSONObject);
     destructor Destroy; override;
     function getConnection: TConnection;
     function getQuery: TQuery;
     function getConnectionStatus: string;
-    function getDataBases: TZQuery;
-    function getTables(aDataBaseName: string): TZQuery;
   end;
 
 implementation
@@ -104,31 +102,27 @@ begin
   end;
 end;
 
-function TDAC.getDataBases: TZQuery;
-begin
-
-end;
-
-function TDAC.GetDefaultDir(aFileName: string): string;
+function TDAC.GetDefaultLibDir: string;
 var
   DefaultDir, temp: string;
 begin
+  Result := '';
   DefaultDir := ExtractFileDir(ParamStr(0));
-  temp := DefaultDir + '\lib\' + aFileName;
+
+  temp := DefaultDir + '\lib\libpq.dll';
   if FileExists(temp) then
-    Result := DefaultDir + '\lib\' + aFileName
+    Result := temp
   else
-    Result := DefaultDir + '\' + aFileName;
+  begin
+    temp := DefaultDir + 'libpq.dll';
+    if FileExists(temp) then
+      Result := temp;
+  end;
 end;
 
 function TDAC.getQuery: TQuery;
 begin
   Result := FQuery;
-end;
-
-function TDAC.getTables(aDataBaseName: string): TZQuery;
-begin
-
 end;
 
 end.

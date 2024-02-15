@@ -1,18 +1,18 @@
-ï»¿// Maiores InformaÃ§Ãµes
+// Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
 
-unit DAC.Firebird.FireDAC;
+unit DAC.MySQL.FireDAC;
 
 interface
 
 uses
   JSON, SysUtils,
-  FireDAC.Comp.Client, FireDAC.Phys.FB;
+  FireDAC.Comp.Client, FireDAC.Phys.MySQL;
 
 type
   TDAC = class
   private
-    FDriver: TFDPhysFBDriverLink;
+    FDriver: TFDPhysMySQLDriverLink;
     FConnection: TFDConnection;
     FQuery: TFDQuery;
     function GetDefaultLibDir: string;
@@ -27,8 +27,8 @@ implementation
 
 constructor TDAC.Create(aJSON: TJSONObject);
 begin
-  FDriver := TFDPhysFBDriverLink.Create(nil);
-  FDriver.DriverID := 'FB';
+  FDriver := TFDPhysMySQLDriverLink.Create(nil);
+  FDriver.DriverID := 'MySQL';
   FDriver.VendorLib := GetDefaultLibDir;
 
   FConnection := TFDConnection.Create(nil);
@@ -43,6 +43,7 @@ begin
       Params.Add('Port=' + aJSON.GetValue('dbport').Value);
       if aJSON.GetValue('banco') <> nil then
         Params.Add('Database=' + aJSON.GetValue('banco').Value);
+
       FQuery := TFDQuery.Create(nil);
       FQuery.Connection := FConnection;
       FQuery.ResourceOptions.SilentMode := true;
@@ -74,15 +75,24 @@ var
 begin
   Result := '';
   DefaultDir := ExtractFileDir(ParamStr(0));
-  // Firebird depende de fbembed.dll ou fbclient.dll
-  if FileExists(DefaultDir + 'fbclient.dll') then
-    Result := DefaultDir + 'fbclient.dll'
-  else if FileExists(DefaultDir + 'fbembed.dll') then
-    Result := DefaultDir + 'fbembed.dll'
-  else if FileExists(DefaultDir + '\lib\fbclient.dll') then
-    Result := DefaultDir + '\lib\fbclient.dll'
-  else if FileExists(DefaultDir + '\lib\fbembed.dll') then
-    Result := DefaultDir + '\lib\fbembed.dll';
+  // libmysql.dll, libmariadb or libmysqld.dll
+  // procurando no diretório do exe primeiro, depois no diretório \lib\
+
+  if FileExists(DefaultDir + 'libmysql.dll') then
+    Result := DefaultDir + 'libmysql.dll'
+  else if FileExists(DefaultDir + 'libmariadb.dll') then
+    Result := DefaultDir + 'libmariadb.dll'
+  else if FileExists(DefaultDir + 'libmysqld.dll') then
+    Result := DefaultDir + 'libmysqld.dll'
+  else if FileExists(DefaultDir + '\lib\libmysql.dll') then
+    Result := DefaultDir + '\lib\libmysql.dll'
+  else if FileExists(DefaultDir + '\lib\libmariadb.dll') then
+    Result := DefaultDir + '\lib\libmariadb.dll'
+  else if FileExists(DefaultDir + '\lib\libmysqld.dll') then
+    Result := DefaultDir + '\lib\libmysqld.dll'
+  else
+    raise Exception.Create('libmysql.dll, libmariadb.dll ou libmysqld.dll' +
+      ' precisam estar na raiz do executável ou na pasta \lib\');
 end;
 
 function TDAC.getQuery: TFDQuery;

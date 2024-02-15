@@ -18,7 +18,7 @@ type
     FConnection: TZConnection;
     FQuery: TZQuery;
     FSchema: string;
-    function GetDefaultDir(aFileName: string): string;
+    function GetDefaultLibDir: string;
   public
     constructor Create(aJSON: TJSONObject);
     destructor Destroy; override;
@@ -48,7 +48,7 @@ begin
       User := aJSON.GetValue('dbuser').Value;
       Password := aJSON.GetValue('dbpassword').Value;
       Protocol := 'postgresql';
-      LibraryLocation := GetDefaultDir('libpq.dll');
+      LibraryLocation := GetDefaultLibDir;
 
       if aJSON.GetValue('banco') <> nil then
         Database := aJSON.GetValue('banco').Value;
@@ -108,15 +108,16 @@ begin
 
 end;
 
-function TDAC.GetDefaultDir(aFileName: string): string;
+function TDAC.GetDefaultLibDir(aFileName: string): string;
 var
   DefaultDir: string;
 begin
+  Result := '';
   DefaultDir := ExtractFileDir(ParamStr(0));
-  if FileExists(DefaultDir + '\lib\' + aFileName) then
-    Result := DefaultDir + '\lib\' + aFileName
-  else
-    Result := DefaultDir + aFileName;
+  if FileExists(DefaultDir + '\lib\libpq.dll') then
+    Result := DefaultDir + '\lib\libpq.dll'
+  else if FileExists(DefaultDir + 'libpq.dll') then
+    Result := DefaultDir + 'libpq.dll';
 end;
 
 function TDAC.getQuery: TQuery;

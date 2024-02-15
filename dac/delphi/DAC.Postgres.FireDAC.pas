@@ -15,7 +15,7 @@ type
     FDriver: TFDPhysPgDriverLink;
     FConnection: TFDConnection;
     FQuery: TFDQuery;
-    function GetDefaultDir(aFileName: string): string;
+    function GetDefaultLibDir: string;
   public
     constructor Create(aJSON: TJSONObject);
     destructor Destroy; override;
@@ -34,7 +34,7 @@ constructor TDAC.Create(aJSON: TJSONObject);
 begin
   FDriver := TFDPhysPgDriverLink.Create(nil);
   FDriver.DriverID := 'PG';
-  FDriver.VendorLib := GetDefaultDir('libpq.dll');
+  FDriver.VendorLib := GetDefaultLibDir;
 
   FConnection := TFDConnection.Create(nil);
   try
@@ -108,15 +108,16 @@ begin
 
 end;
 
-function TDAC.GetDefaultDir(aFileName: string): string;
+function TDAC.GetDefaultLibDir: string;
 var
   DefaultDir: string;
 begin
+  Result := '';
   DefaultDir := ExtractFileDir(ParamStr(0));
-  if FileExists(DefaultDir + '\lib\' + aFileName) then
-    Result := DefaultDir + '\lib\' + aFileName
-  else
-    Result := DefaultDir + aFileName;
+  if FileExists(DefaultDir + '\lib\libpq.dll') then
+    Result := DefaultDir + '\lib\libpq.dll'
+  else if FileExists(DefaultDir + 'libpq.dll') then
+    Result := DefaultDir + 'libpq.dll';
 end;
 
 function TDAC.getQuery: TFDQuery;
