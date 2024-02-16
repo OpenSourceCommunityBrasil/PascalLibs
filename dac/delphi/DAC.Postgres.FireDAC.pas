@@ -64,12 +64,9 @@ end;
 
 destructor TDAC.Destroy;
 begin
-  if FDriver <> nil then
-    FDriver.Free;
-  if FQuery <> nil then
-    FQuery.Free;
-  if FConnection <> nil then
-    FConnection.Free;
+  if Assigned(FDriver) then FreeAndNil(FDriver);
+  if Assigned(FQuery) then  FreeAndNil(FQuery);
+  if Assigned(FConnection) then FreeAndNil(FConnection);
   inherited;
 end;
 

@@ -15,8 +15,8 @@ type
 
   TDAC = class
   private
-    FConnection: TZConnection;
-    FQuery: TZQuery;
+    FConnection: TConnection;
+    FQuery: TQuery;
     FSchema: string;
     function GetDefaultLibDir: string;
   public
@@ -25,8 +25,8 @@ type
     function getConnection: TConnection;
     function getQuery: TQuery;
     function getConnectionStatus: string;
-    function getDataBases: TZQuery;
-    function getTables(aDataBaseName: string): TZQuery;
+    function getDataBases: TQuery;
+    function getTables(aDataBaseName: string): TQuery;
   end;
 
 implementation
@@ -65,11 +65,8 @@ end;
 
 destructor TDAC.Destroy;
 begin
-  FQuery.Connection := nil;
-  if Assigned(FQuery) then
-    FreeAndNil(FQuery);
-  if Assigned(FConnection) then
-    FreeAndNil(FConnection);
+  if Assigned(FQuery) then  FreeAndNil(FQuery);
+  if Assigned(FConnection) then FreeAndNil(FConnection);
   inherited;
 end;
 

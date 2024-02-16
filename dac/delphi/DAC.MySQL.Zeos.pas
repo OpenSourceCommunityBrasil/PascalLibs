@@ -1,21 +1,22 @@
-// Maiores Informações
+ï»¿// Maiores InformaÃ§Ãµes
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
 
-unit DAC.MySQL.FireDAC;
+unit DAC.MySQL.Zeos;
 
 interface
 
 uses
   JSON, SysUtils,
-  FireDAC.Comp.Client, FireDAC.Phys.MySQL;
+  ZConnection, ZDataset;
 
 type
-  TConnection = TFDConnection;
-  TQuery = TFDQuery;
+  TConnection = TZConnection;
+  TQuery = TZQuery;
+
+  { TDAC }
 
   TDAC = class
   private
-    FDriver: TFDPhysMySQLDriverLink;
     FConnection: TConnection;
     FQuery: TQuery;
     function GetDefaultLibDir: string;
@@ -30,27 +31,25 @@ implementation
 
 constructor TDAC.Create(aJSON: TJSONObject);
 begin
-  FDriver := TFDPhysMySQLDriverLink.Create(nil);
-  FDriver.DriverID := 'MySQL';
-  FDriver.VendorLib := GetDefaultLibDir;
-
+  FConnection := nil;
+  FQuery := nil;
   FConnection := TConnection.Create(nil);
   try
     with FConnection do
     begin
-      LoginPrompt := false;
-      Params.Add('DriverID=MySQL');
-      Params.Add('Server=' + aJSON.GetValue('dbserver').Value);
-      Params.Add('User_Name=' + aJSON.GetValue('dbuser').Value);
-      Params.Add('Password=' + aJSON.GetValue('dbpassword').Value);
-      Params.Add('Port=' + aJSON.GetValue('dbport').Value);
-      if aJSON.GetValue('banco') <> nil then
-        Params.Add('Database=' + aJSON.GetValue('banco').Value);
+      LoginPrompt := False;
+      HostName := aJSON.GetValue('dbserver').Value;
+      Port := aJSON.GetValue('dbport').Value.ToInteger;
+      User := aJSON.GetValue('dbuser').Value;
+      Password := aJSON.GetValue('dbpassword').Value;
+      Protocol := 'mysql';
+      LibraryLocation := GetDefaultLibDir;
 
-      FQuery := TQuery.Create(nil);
-      FQuery.Connection := FConnection;
-      FQuery.ResourceOptions.SilentMode := true;
+      if aJSON.GetValue('banco') <> nil then
+        Database := aJSON.GetValue('banco').Value;
     end;
+    FQuery := TQuery.Create(nil);
+    FQuery.Connection := FConnection;
   except
     // log
   end;
@@ -58,7 +57,6 @@ end;
 
 destructor TDAC.Destroy;
 begin
-  if Assigned(FDriver) then FreeAndNil(FDriver);
   if Assigned(FQuery) then  FreeAndNil(FQuery);
   if Assigned(FConnection) then FreeAndNil(FConnection);
   inherited;
@@ -76,7 +74,7 @@ begin
   Result := '';
   DefaultDir := ExtractFileDir(ParamStr(0));
   // libmysql.dll, libmariadb or libmysqld.dll
-  // procurando no diretório do exe primeiro, depois no diretório \lib\
+  // procurando no diretÃ³rio do exe primeiro, depois no diretÃ³rio \lib\
 
   if FileExists(DefaultDir + 'libmysql.dll') then
     Result := DefaultDir + 'libmysql.dll'
@@ -92,7 +90,7 @@ begin
     Result := DefaultDir + '\lib\libmysqld.dll'
   else
     raise Exception.Create('libmysql.dll, libmariadb.dll ou libmysqld.dll' +
-      ' precisam estar na raiz do executável ou na pasta \lib\');
+      ' precisam estar na raiz do executÃ¡vel ou na pasta \lib\');
 end;
 
 function TDAC.getQuery: TQuery;

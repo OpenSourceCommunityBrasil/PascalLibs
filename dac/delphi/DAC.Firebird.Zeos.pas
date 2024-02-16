@@ -1,21 +1,20 @@
-ï»¿// Maiores InformaÃ§Ãµes
+// Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
 
-unit DAC.Firebird.FireDAC;
+unit DAC.Firebird.Zeos;
 
 interface
 
 uses
   JSON, SysUtils,
-  FireDAC.Comp.Client, FireDAC.Phys.FB;
+  ZConnection, ZDataset;
 
 type
-  TConnection = TFDConnection;
-  TQuery = TFDQuery;
+  TConnection = TZConnection;
+  TQuery = TZQuery;
 
   TDAC = class
   private
-    FDriver: TFDPhysFBDriverLink;
     FConnection: TConnection;
     FQuery: TQuery;
     function GetDefaultLibDir: string;
@@ -30,27 +29,25 @@ implementation
 
 constructor TDAC.Create(aJSON: TJSONObject);
 begin
-  FDriver := TFDPhysFBDriverLink.Create(nil);
-  FDriver.DriverID := 'FB';
-  FDriver.VendorLib := GetDefaultLibDir;
-
+  FConnection := nil;
+  FQuery := nil;
   FConnection := TConnection.Create(nil);
   try
     with FConnection do
     begin
-      LoginPrompt := false;
-      Params.Add('DriverID=FB');
-      Params.Add('Server=' + aJSON.GetValue('dbserver').Value);
-      Params.Add('User_Name=' + aJSON.GetValue('dbuser').Value);
-      Params.Add('Password=' + aJSON.GetValue('dbpassword').Value);
-      Params.Add('Port=' + aJSON.GetValue('dbport').Value);
-      if aJSON.GetValue('banco') <> nil then
-        Params.Add('Database=' + aJSON.GetValue('banco').Value);
+      LoginPrompt := False;
+      HostName := aJSON.GetValue('dbserver').Value;
+      Port := aJSON.GetValue('dbport').Value.ToInteger;
+      User := aJSON.GetValue('dbuser').Value;
+      Password := aJSON.GetValue('dbpassword').Value;
+      Protocol := 'firebird';
+      LibraryLocation := GetDefaultLibDir;
 
-      FQuery := TQuery.Create(nil);
-      FQuery.Connection := FConnection;
-      FQuery.ResourceOptions.SilentMode := true;
+      if aJSON.GetValue('banco') <> nil then
+        Database := aJSON.GetValue('banco').Value;
     end;
+    FQuery := TQuery.Create(nil);
+    FQuery.Connection := FConnection;
   except
     // log
   end;
@@ -58,7 +55,6 @@ end;
 
 destructor TDAC.Destroy;
 begin
-  if Assigned(FDriver) then FreeAndNil(FDriver);
   if Assigned(FQuery) then  FreeAndNil(FQuery);
   if Assigned(FConnection) then FreeAndNil(FConnection);
   inherited;
