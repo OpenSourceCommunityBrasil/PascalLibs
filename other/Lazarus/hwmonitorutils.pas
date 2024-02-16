@@ -79,7 +79,7 @@ begin
     LastProcKernelTime := int64(ProcKernelTime);
     LastProcUserTime := int64(ProcUserTime);
 
-    Result := FloatToStrF(calc, ffFixed, 16, 2) + ' %';
+    Result := FloatToStrF(calc, ffFixed, 16, 2);
   finally
     CloseHandle(hProcess);
   end;
