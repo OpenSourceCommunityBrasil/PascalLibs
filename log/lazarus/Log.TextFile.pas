@@ -20,6 +20,7 @@ type
     FSection: string;
     FValue: string;
   protected
+    procedure doLog;
     procedure Execute; override;
   public
     constructor Create(ASection, AValue, AFileName: string);
@@ -46,7 +47,7 @@ begin
   inherited Destroy;
 end;
 
-procedure TLog.Execute;
+procedure TLog.doLog;
 var
   FLogFile: Text;
   logdata: string;
@@ -73,6 +74,11 @@ begin
   finally
     CloseFile(FlogFile);
   end;
+end;
+
+procedure TLog.Execute;
+begin
+  Synchronize(@doLog);
 end;
 
 class procedure TLog.Log(ASection, AValue: string; AFileName: string);
