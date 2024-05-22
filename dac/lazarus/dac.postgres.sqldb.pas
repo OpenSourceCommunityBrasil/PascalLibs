@@ -116,6 +116,7 @@ destructor TDAC.Destroy;
 begin
   if Assigned(FQuery) then
   begin
+    FQuery.Close;
     FQuery.DataBase := nil;
     FreeAndNil(FQuery);
   end;

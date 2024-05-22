@@ -3,10 +3,14 @@
 interface
 
 uses
-  fpJSON, SysUtils, Classes,
-  DB, ZDataSet;
+  fpJSON, SysUtils, Classes, DB,
+  ZDataSet;
 
 type
+  TQuery = TZQuery;
+
+  { TCRUDBase }
+
   TCRUDBase = class
   private
     FPK: string;
@@ -17,19 +21,21 @@ type
     procedure SetPK(const Value: string);
     procedure SetTableName(const Value: string);
     procedure SetSchema(const Value: string);
+    function Create(aQuery: string): string;
+    function Read(aQuery: string): string;
+    function Update(aQuery: string): string;
+    function Delete(aQuery: string): string;
   public
-    FDataSet: TZQuery;
+    FDataSet: TQuery;
+    constructor Create(DataSet: TQuery; aTableName: string = ''; aPK: string = '');
+
     function Atualizar(aJSON: TJSONObject; out StatusCode: integer;
       ValidaConcorrente: boolean): string; overload;
     function Atualizar(aQuery: string; out StatusCode: integer): string; overload;
-    constructor Create(DataSet: TZQuery; aTableName: string = ''; aPK: string = '');
-    function Excluir(aJSON: TJSONObject; out StatusCode: integer): string;
-      overload;
+    function Excluir(aJSON: TJSONObject; out StatusCode: integer): string; overload;
     function Excluir(aQuery: string; out StatusCode: integer): string; overload;
-    function getDados(aJSON: TJSONObject; out StatusCode: integer): string;
-      overload;
-    function getDados(aQuery: string; out StatusCode: integer): string;
-      overload;
+    function getDados(aJSON: TJSONObject; out StatusCode: integer): string; overload;
+    function getDados(aQuery: string; out StatusCode: integer): string; overload;
     function getDados(aQuery: string; aFilterParams: TJSONObject;
       out StatusCode: integer): string; overload;
     function getDados(out StatusCode: integer): string; overload;
@@ -68,11 +74,11 @@ begin
         Close;
         SQL.Clear;
         if not Schema.IsEmpty then
-          SQL.Add('SET search_path = ' + FSchema + ';');
+          Connection.ExecuteDirect(Format('SET search_path = ''%s'';', [FSchema]));
         SQL.Add('SELECT *');
-        SQL.Add('  FROM "' + TableName + '"');
-        SQL.Add(' WHERE "' + PK + '" = :pkv');
-        ParamByName('pkv').Value := StrToIntDef(pkv, 0);
+        SQL.Add('  FROM "%s"', [TableName]);
+        SQL.Add(' WHERE "%s" = :pkv', [PK]);
+        ParamByName('pkv').Value := pkv;
         Open;
         if not IsEmpty then
           Edit
@@ -92,7 +98,7 @@ begin
         if pkv = '' then
         begin
           SQL.Clear;
-          SQL.Text := 'SELECT MAX("' + PK + '") FROM "' + TableName + '"';
+          SQL.Text := Format('SELECT MAX("%s") FROM "%s"', [PK, TableName]);
           Open;
           retorno.Add(PK, Fields.Fields[0].AsString);
           Close;
@@ -132,8 +138,8 @@ begin
       begin
         SQL.Clear;
         if not Schema.IsEmpty then
-          SQL.Add('SET search_path = ' + FSchema + ';');
-        SQL.Add('SELECT * FROM "' + TableName + '" WHERE "' + PK + '" is null');
+          Connection.ExecuteDirect(Format('SET search_path = ''%s'';', [FSchema]));
+        SQL.Add('SELECT * FROM "%s" WHERE "%s" is null', [TableName, PK]);
         Open;
         for I := 0 to pred(aJSON.Count) do
         begin
@@ -141,16 +147,16 @@ begin
             JSONFields.Add(FindField(aJSON.Names[I]).FieldName, aJSON.Items[I].AsString);
         end;
         Close;
+
         SQL.Clear;
         if not Schema.IsEmpty then
-          SQL.Add('SET search_path = ' + FSchema + ';');
+          Connection.ExecuteDirect(Format('SET search_path = ''%s'';', [FSchema]));
         SQL.Add('SELECT *');
-        SQL.Add('  FROM "' + TableName + '"');
+        SQL.Add('  FROM "%s"', [TableName]);
         SQL.Add(' WHERE 1=1');
         for I := 0 to pred(JSONFields.Count) do
-          SQL.Add(' AND CAST("' + JSONFields.Names[I] +
-            '" AS varchar) ILIKE CAST(''' + JSONFields.Items[I].AsString +
-            ''' AS varchar)');
+          SQL.Add(' AND CAST("%s" AS varchar) ILIKE CAST(''%s'' AS varchar)',
+            [JSONFields.Names[I], JSONFields.Items[I].AsString]);
         Open;
         if not IsEmpty then
         begin
@@ -179,7 +185,7 @@ begin
       Close;
       SQL.Clear;
       if not Schema.IsEmpty then
-        SQL.Add('SET search_path = ' + FSchema + ';');
+        Connection.ExecuteDirect(Format('SET search_path = ''%s'';', [FSchema]));
       SQL.Add(aQuery);
       ExecSQL;
       StatusCode := 200;
@@ -195,7 +201,7 @@ begin
   end;
 end;
 
-constructor TCRUDBase.Create(DataSet: TZQuery; aTableName, aPK: string);
+constructor TCRUDBase.Create(DataSet: TQuery; aTableName: string; aPK: string);
 begin
   FSchema := '';
   FDataSet := DataSet;
@@ -229,7 +235,7 @@ begin
       Close;
       SQL.Clear;
       if not Schema.IsEmpty then
-        SQL.Add('SET search_path = ' + FSchema + ';');
+        Connection.ExecuteDirect(Format('SET search_path = ''%s'';', [FSchema]));
       SQL.Add(aQuery);
       ExecSQL;
       StatusCode := 200;
@@ -257,13 +263,14 @@ begin
       Close;
       SQL.Clear;
       if not Schema.IsEmpty then
-        SQL.Add('SET search_path = ' + FSchema + ';');
+        Connection.ExecuteDirect(Format('SET search_path = ''%s'';', [FSchema]));
       SQL.Add('DELETE ');
-      SQL.Add('  FROM "' + TableName + '"');
+      SQL.Add('  FROM "%s"', [TableName]);
       SQL.Add(' WHERE 1=1');
       for I := 0 to pred(aJSON.Count) do
-        SQL.Add(' AND CAST("' + aJSON.Names[I] + '" AS varchar) = CAST(''' +
-          aJSON.Items[I].AsString + ''' AS varchar)');
+        SQL.Add(' AND CAST("%s" AS varchar) ILIKE CAST(''%s'' AS varchar)',
+          [aJSON.Names[I], aJSON.Items[I].AsString]);
+
       ExecSQL;
       StatusCode := 200;
       Result := Fields.Fields[0].Value;
@@ -288,7 +295,7 @@ begin
       Close;
       SQL.Clear;
       if not Schema.IsEmpty then
-        SQL.Add('set search_path = ' + QuotedStr(Schema) + ';');
+        Connection.ExecuteDirect(Format('SET search_path = ''%s'';', [FSchema]));
       SQL.Add(aQuery);
       Open;
 
@@ -297,8 +304,12 @@ begin
 
       Close;
     end;
-  finally
-
+  except
+    on e: Exception do
+    begin
+      StatusCode := 500;
+      Result := Format('{"erro":"%s"}', [e.Message]);
+    end;
   end;
 end;
 
@@ -315,8 +326,8 @@ begin
     begin
       SQL.Clear;
       if not Schema.IsEmpty then
-        SQL.Add('SET search_path = ' + QuotedStr(FSchema) + ';');
-      SQL.Add('SELECT * FROM "' + TableName + '" LIMIT 1');
+        Connection.ExecuteDirect(Format('SET search_path = ''%s'';', [FSchema]));
+      SQL.Add('SELECT * FROM "%s" LIMIT 1', [TableName]);
       Open;
       for I := 0 to pred(aJSON.Count) do
         if not (FindField(aJSON.Names[I]) = nil) then
@@ -326,14 +337,13 @@ begin
       Close;
       SQL.Clear;
       if not Schema.IsEmpty then
-        SQL.Add('SET search_path = ' + QuotedStr(FSchema) + ';');
+        Connection.ExecuteDirect(Format('SET search_path = ''%s'';', [FSchema]));
       SQL.Add('SELECT *');
-      SQL.Add('  FROM "' + TableName + '"');
+      SQL.Add('  FROM "%s"', [TableName]);
       SQL.Add(' WHERE 1=1');
       for I := 0 to pred(JSONFields.Count) do
-        SQL.Add(' AND CAST(' + JSONFields.Names[I] +
-          ' AS varchar) ILIKE CAST(' + QuotedStr('%' +
-          JSONFields.Items[I].AsString + '%') + ' AS varchar)');
+        SQL.Add(' AND CAST(%s AS varchar) ILIKE CAST(%s AS varchar)',
+          [JSONFields.Names[I], QuotedStr('%' + JSONFields.Items[I].AsString + '%')]);
       Open;
 
       StatusCode := 200;
@@ -355,8 +365,8 @@ begin
     Close;
     SQL.Clear;
     if not Schema.IsEmpty then
-      SQL.Add('SET search_path = ' + QuotedStr(FSchema) + ';');
-    SQL.Add('SELECT * FROM "' + FTableName + '"');
+      Connection.ExecuteDirect(Format('SET search_path = ''%s'';', [FSchema]));
+    SQL.Add('SELECT * FROM "%s"', [FTableName]);
     Open;
 
     StatusCode := 200;
@@ -374,7 +384,7 @@ begin
       Close;
       SQL.Clear;
       if not Schema.IsEmpty then
-        SQL.Add('SET search_path = ' + QuotedStr(FSchema) + ';');
+        Connection.ExecuteDirect(Format('SET search_path = ''%s'';', [FSchema]));
       SQL.Add(aQuery);
       Open;
 
@@ -407,8 +417,8 @@ begin
       Close;
       SQL.Clear;
       if not Schema.IsEmpty then
-        SQL.Add('SET search_path = ' + QuotedStr(FSchema) + ';');
-      SQL.Add('SELECT * FROM (' + aQuery + ') as r LIMIT 1');
+        Connection.ExecuteDirect(Format('SET search_path = ''%s'';', [FSchema]));
+      SQL.Add('SELECT * FROM (%s) as r LIMIT 1', [aQuery]);
       Open;
 
       for I := 0 to pred(aFilterParams.Count) do
@@ -432,9 +442,8 @@ begin
       J := J + 1;
       for I := 0 to pred(JSONFields.Count) do
       begin
-        SQLInput.Insert(J, ' AND CAST(' + JSONFields.Names[I] +
-          ' AS varchar) ILIKE CAST(' + QuotedStr('%' +
-          JSONFields.Items[I].AsString + '%') + ' AS varchar)');
+        SQLInput.Insert(J, Format(' AND CAST(%s AS varchar) ILIKE CAST(%s AS varchar)',
+          [JSONFields.Names[I], QuotedStr('%' + JSONFields.Items[I].AsString + '%')]));
         J := J + 1;
       end;
       SQL.Text := SQLInput.Text;
@@ -458,6 +467,38 @@ end;
 procedure TCRUDBase.SetSchema(const Value: string);
 begin
   FSchema := Value;
+end;
+
+function TCRUDBase.Create(aQuery: string): string;
+begin
+
+end;
+
+function TCRUDBase.Read(aQuery: string): string;
+begin
+  with FDataSet do
+  begin
+    Close;
+    SQL.Clear;
+    if not Schema.IsEmpty then
+      Connection.ExecuteDirect(Format('SET search_path = ''%s'';', [FSchema]));
+    SQL.Add(aQuery);
+    Open;
+
+    Result := FDataSet.ToJSON;
+
+    Close;
+  end;
+end;
+
+function TCRUDBase.Update(aQuery: string): string;
+begin
+
+end;
+
+function TCRUDBase.Delete(aQuery: string): string;
+begin
+
 end;
 
 procedure TCRUDBase.SetTableName(const Value: string);

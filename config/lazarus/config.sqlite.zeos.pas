@@ -52,7 +52,7 @@ end;
 constructor TSQLiteConfig.Create(aFileName: string);
 begin
   FConn := TZConnection.Create(nil);
-  FConn.Protocol := 'sqlite-3';
+  FConn.Protocol := 'sqlite';
   FConn.Database := ExtractFilePath(ParamStr(0)) + aFileName;
   FConn.Properties.Add('LockingMode=normal');
   FConn.LibraryLocation := GetDefaultDir('sqlite3.dll');

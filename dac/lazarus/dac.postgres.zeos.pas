@@ -17,8 +17,8 @@ type
 
   TDAC = class
   private
-    FConnection: TZConnection;
-    FQuery: TZQuery;
+    FConnection: TConnection;
+    FQuery: TQuery;
     FSchema: string;
     function GetDefaultLibDir: string;
   public
@@ -44,20 +44,17 @@ begin
     begin
       LoginPrompt := False;
       HostName := aJSON.Get('dbserver', '');
-      Port := aJSON.Get('dbport', 0);
+      Port := aJSON.Get('dbport', 5432);
       User := aJSON.Get('dbuser', '');
       Password := aJSON.Get('dbpassword', '');
       Protocol := 'postgresql';
+      Database := aJSON.Get('banco', '');
       LibraryLocation := GetDefaultLibDir;
-
-      if aJSON.Get('banco', '') <> '' then
-        Database := aJSON.Get('banco', '');
     end;
     FQuery := TQuery.Create(nil);
     FQuery.Connection := FConnection;
-
-    if aJSON.Get('schema', '') <> '' then
-      FSchema := aJSON.Get('schema', '');
+    FSchema := aJSON.Get('schema', '');
+    FConnection.Connect;
   except
     // log
   end;
@@ -66,10 +63,8 @@ end;
 destructor TDAC.Destroy;
 begin
   FQuery.Connection := nil;
-  if Assigned(FQuery) then
-    FreeAndNil(FQuery);
-  if Assigned(FConnection) then
-    FreeAndNil(FConnection);
+  if Assigned(FQuery)      then FreeAndNil(FQuery);
+  if Assigned(FConnection) then FreeAndNil(FConnection);
   inherited;
 end;
 
@@ -105,25 +100,24 @@ end;
 
 function TDAC.GetDefaultLibDir: string;
 var
-  DefaultDir, temp: string;
+  DefaultDir: string;
 begin
   Result := '';
   DefaultDir := ExtractFileDir(ParamStr(0));
 
-  temp := DefaultDir + '\lib\libpq.dll';
-  if FileExists(temp) then
-    Result := temp
+  if FileExists(DefaultDir + '\lib\libpq.dll') then
+    Result := DefaultDir + '\lib\libpq.dll'
+  else if FileExists(DefaultDir + '\lib\libpq.dll') then
+    Result := DefaultDir + '\lib\libpq.dll'
   else
-  begin
-    temp := DefaultDir + 'libpq.dll';
-    if FileExists(temp) then
-      Result := temp;
-  end;
+    raise Exception.Create('libpq.dll' +
+      ' precisa estar na raiz do executável ou na pasta \lib\');
 end;
 
 function TDAC.getQuery: TQuery;
 begin
   Result := FQuery;
+  FQuery.Properties.Add('emulate_prepares=true');
 end;
 
 end.
