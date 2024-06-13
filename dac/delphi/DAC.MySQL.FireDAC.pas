@@ -58,8 +58,8 @@ end;
 
 destructor TDAC.Destroy;
 begin
-  if Assigned(FDriver) then FreeAndNil(FDriver);
-  if Assigned(FQuery) then  FreeAndNil(FQuery);
+  if Assigned(FDriver)     then FreeAndNil(FDriver);
+  if Assigned(FQuery)      then FreeAndNil(FQuery);
   if Assigned(FConnection) then FreeAndNil(FConnection);
   inherited;
 end;
@@ -76,20 +76,19 @@ begin
   Result := '';
   DefaultDir := ExtractFileDir(ParamStr(0));
   // libmysql.dll, libmariadb or libmysqld.dll
-  // procurando no diretório do exe primeiro, depois no diretório \lib\
 
-  if FileExists(DefaultDir + 'libmysql.dll') then
-    Result := DefaultDir + 'libmysql.dll'
-  else if FileExists(DefaultDir + 'libmariadb.dll') then
-    Result := DefaultDir + 'libmariadb.dll'
-  else if FileExists(DefaultDir + 'libmysqld.dll') then
-    Result := DefaultDir + 'libmysqld.dll'
-  else if FileExists(DefaultDir + '\lib\libmysql.dll') then
+  if FileExists(DefaultDir + '\lib\libmysql.dll') then
     Result := DefaultDir + '\lib\libmysql.dll'
   else if FileExists(DefaultDir + '\lib\libmariadb.dll') then
     Result := DefaultDir + '\lib\libmariadb.dll'
   else if FileExists(DefaultDir + '\lib\libmysqld.dll') then
     Result := DefaultDir + '\lib\libmysqld.dll'
+  else if FileExists(DefaultDir + 'libmysql.dll') then
+    Result := DefaultDir + 'libmysql.dll'
+  else if FileExists(DefaultDir + 'libmariadb.dll') then
+    Result := DefaultDir + 'libmariadb.dll'
+  else if FileExists(DefaultDir + 'libmysqld.dll') then
+    Result := DefaultDir + 'libmysqld.dll'
   else
     raise Exception.Create('libmysql.dll, libmariadb.dll ou libmysqld.dll' +
       ' precisam estar na raiz do executável ou na pasta \lib\');

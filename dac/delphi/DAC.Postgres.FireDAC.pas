@@ -10,20 +10,21 @@ uses
   FireDAC.Comp.Client, FireDAC.Phys.PG;
 
 type
+  TConnection = TFDConnection;
+  TQuery = TFDQuery;
+
   TDAC = class
   private
     FDriver: TFDPhysPgDriverLink;
-    FConnection: TFDConnection;
-    FQuery: TFDQuery;
+    FConnection: TConnection;
+    FQuery: TQuery;
     function GetDefaultLibDir: string;
   public
     constructor Create(aJSON: TJSONObject);
     destructor Destroy; override;
-    function getConnection: TFDConnection;
-    function getQuery: TFDQuery;
+    function getConnection: TConnection;
+    function getQuery: TQuery;
     function getConnectionStatus: string;
-    function getDataBases: TFDQuery;
-    function getTables(aDataBaseName: string): TFDQuery;
   end;
 
 implementation
@@ -36,7 +37,7 @@ begin
   FDriver.DriverID := 'PG';
   FDriver.VendorLib := GetDefaultLibDir;
 
-  FConnection := TFDConnection.Create(nil);
+  FConnection := TConnection.Create(nil);
   try
     with FConnection do
     begin
@@ -53,7 +54,7 @@ begin
       if aJSON.GetValue('schema') <> nil then
         ExecSQL('SET search_path = ' + aJSON.GetValue('schema').Value);
 
-      FQuery := TFDQuery.Create(nil);
+      FQuery := TQuery.Create(nil);
       FQuery.Connection := FConnection;
       FQuery.ResourceOptions.SilentMode := true;
     end;
@@ -64,13 +65,13 @@ end;
 
 destructor TDAC.Destroy;
 begin
-  if Assigned(FDriver) then FreeAndNil(FDriver);
-  if Assigned(FQuery) then  FreeAndNil(FQuery);
+  if Assigned(FDriver)     then FreeAndNil(FDriver);
+  if Assigned(FQuery)      then FreeAndNil(FQuery);
   if Assigned(FConnection) then FreeAndNil(FConnection);
   inherited;
 end;
 
-function TDAC.getConnection: TFDConnection;
+function TDAC.getConnection: TConnection;
 begin
   Result := FConnection;
 end;
@@ -100,11 +101,6 @@ begin
   end;
 end;
 
-function TDAC.getDataBases: TFDQuery;
-begin
-
-end;
-
 function TDAC.GetDefaultLibDir: string;
 var
   DefaultDir: string;
@@ -114,17 +110,15 @@ begin
   if FileExists(DefaultDir + '\lib\libpq.dll') then
     Result := DefaultDir + '\lib\libpq.dll'
   else if FileExists(DefaultDir + 'libpq.dll') then
-    Result := DefaultDir + 'libpq.dll';
+    Result := DefaultDir + 'libpq.dll'
+  else
+    raise Exception.Create('libpq.dll' +
+      ' precisa estar na raiz do executável ou na pasta \lib\');
 end;
 
-function TDAC.getQuery: TFDQuery;
+function TDAC.getQuery: TQuery;
 begin
   Result := FQuery;
-end;
-
-function TDAC.getTables(aDataBaseName: string): TFDQuery;
-begin
-
 end;
 
 end.

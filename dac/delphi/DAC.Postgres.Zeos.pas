@@ -6,7 +6,7 @@ unit DAC.Postgres.Zeos;
 interface
 
 uses
-  JSON, SysUtils, Classes,
+  JSON, SysUtils,
   ZConnection, ZDataset;
 
 type
@@ -25,8 +25,6 @@ type
     function getConnection: TConnection;
     function getQuery: TQuery;
     function getConnectionStatus: string;
-    function getDataBases: TQuery;
-    function getTables(aDataBaseName: string): TQuery;
   end;
 
 implementation
@@ -38,22 +36,21 @@ begin
   FConnection := nil;
   FQuery := nil;
   FSchema := '';
-  FConnection := TZConnection.Create(nil);
+  FConnection := TConnection.Create(nil);
   try
     with FConnection do
     begin
-      LoginPrompt := false;
+      LoginPrompt := False;
       HostName := aJSON.GetValue('dbserver').Value;
       Port := aJSON.GetValue('dbport').Value.ToInteger;
       User := aJSON.GetValue('dbuser').Value;
       Password := aJSON.GetValue('dbpassword').Value;
       Protocol := 'postgresql';
-      LibraryLocation := GetDefaultLibDir;
-
       if aJSON.GetValue('banco') <> nil then
         Database := aJSON.GetValue('banco').Value;
+      LibraryLocation := GetDefaultLibDir;
     end;
-    FQuery := TZQuery.Create(nil);
+    FQuery := TQuery.Create(nil);
     FQuery.Connection := FConnection;
 
     if aJSON.GetValue('schema') <> nil then
@@ -65,7 +62,7 @@ end;
 
 destructor TDAC.Destroy;
 begin
-  if Assigned(FQuery) then  FreeAndNil(FQuery);
+  if Assigned(FQuery)      then FreeAndNil(FQuery);
   if Assigned(FConnection) then FreeAndNil(FConnection);
   inherited;
 end;
@@ -100,12 +97,7 @@ begin
   end;
 end;
 
-function TDAC.getDataBases: TZQuery;
-begin
-
-end;
-
-function TDAC.GetDefaultLibDir(aFileName: string): string;
+function TDAC.GetDefaultLibDir: string;
 var
   DefaultDir: string;
 begin
@@ -114,7 +106,10 @@ begin
   if FileExists(DefaultDir + '\lib\libpq.dll') then
     Result := DefaultDir + '\lib\libpq.dll'
   else if FileExists(DefaultDir + 'libpq.dll') then
-    Result := DefaultDir + 'libpq.dll';
+    Result := DefaultDir + 'libpq.dll'
+  else
+    raise Exception.Create('libpq.dll' +
+      ' precisa estar na raiz do executável ou na pasta \lib\');
 end;
 
 function TDAC.getQuery: TQuery;
@@ -122,11 +117,6 @@ begin
   if not FSchema.IsEmpty then
     FQuery.SQL.Add('SET search_path = ' + QuotedStr(FSchema) + ';');
   Result := FQuery;
-end;
-
-function TDAC.getTables(aDataBaseName: string): TZQuery;
-begin
-
 end;
 
 end.

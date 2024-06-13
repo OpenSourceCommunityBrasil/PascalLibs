@@ -58,8 +58,8 @@ end;
 
 destructor TDAC.Destroy;
 begin
-  if Assigned(FDriver) then FreeAndNil(FDriver);
-  if Assigned(FQuery) then  FreeAndNil(FQuery);
+  if Assigned(FDriver)     then FreeAndNil(FDriver);
+  if Assigned(FQuery)      then FreeAndNil(FQuery);
   if Assigned(FConnection) then FreeAndNil(FConnection);
   inherited;
 end;
@@ -76,14 +76,18 @@ begin
   Result := '';
   DefaultDir := ExtractFileDir(ParamStr(0));
   // Firebird depende de fbembed.dll ou fbclient.dll
-  if FileExists(DefaultDir + 'fbclient.dll') then
+
+  if FileExists(DefaultDir + '\lib\fbclient.dll') then
+    Result := DefaultDir + '\lib\fbclient.dll'
+  else if FileExists(DefaultDir + '\lib\fbembed.dll') then
+    Result := DefaultDir + '\lib\fbembed.dll'
+  else if FileExists(DefaultDir + 'fbclient.dll') then
     Result := DefaultDir + 'fbclient.dll'
   else if FileExists(DefaultDir + 'fbembed.dll') then
     Result := DefaultDir + 'fbembed.dll'
-  else if FileExists(DefaultDir + '\lib\fbclient.dll') then
-    Result := DefaultDir + '\lib\fbclient.dll'
-  else if FileExists(DefaultDir + '\lib\fbembed.dll') then
-    Result := DefaultDir + '\lib\fbembed.dll';
+  else
+    raise Exception.Create('fbclient.dll ou fbembed.dll' +
+      ' precisam estar na raiz do executável ou na pasta \lib\');
 end;
 
 function TDAC.getQuery: TQuery;
