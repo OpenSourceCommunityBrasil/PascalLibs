@@ -76,14 +76,14 @@ begin
   Result := '';
   DefaultDir := ExtractFileDir(ParamStr(0));
   // Firebird depende de fbembed.dll ou fbclient.dll
-  if FileExists(DefaultDir + 'fbclient.dll') then
-    Result := DefaultDir + 'fbclient.dll'
-  else if FileExists(DefaultDir + 'fbembed.dll') then
-    Result := DefaultDir + 'fbembed.dll'
-  else if FileExists(DefaultDir + '\lib\fbclient.dll') then
+  if FileExists(DefaultDir + '\lib\fbclient.dll') then
     Result := DefaultDir + '\lib\fbclient.dll'
   else if FileExists(DefaultDir + '\lib\fbembed.dll') then
     Result := DefaultDir + '\lib\fbembed.dll'
+  else if FileExists(DefaultDir + 'fbclient.dll') then
+    Result := DefaultDir + 'fbclient.dll'
+  else if FileExists(DefaultDir + 'fbembed.dll') then
+    Result := DefaultDir + 'fbembed.dll'
   else
     raise Exception.Create('fbclient.dll ou fbembed.dll' +
       ' precisa estar na raiz do executável ou na pasta \lib\');
