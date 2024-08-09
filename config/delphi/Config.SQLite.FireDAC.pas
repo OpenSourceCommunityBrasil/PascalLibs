@@ -1,5 +1,6 @@
 // Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
+// version 1.0
 unit Config.SQLite.FireDAC;
 
 interface
@@ -15,7 +16,7 @@ uses
 {$IF CompilerVersion > 33.0}
   FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.Stan.ExprFuncs,
   FireDAC.Phys.SQLiteDef, FireDAC.Stan.Intf, FireDAC.Phys, FireDAC.Phys.SQLite,
-  FireDAC.Stan.Param,
+  FireDAC.Stan.Param, FireDAC.Stan.Def, FireDAC.DApt, FireDAC.stan.Async,
 {$IFEND}
 {$IFDEF Android}
   System.IOUtils,

@@ -1,6 +1,6 @@
 // Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-
+// version 1.0
 unit Config.SQLite.Zeos;
 
 {$MODE Delphi}

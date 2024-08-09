@@ -1,6 +1,6 @@
 ﻿// Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-
+// version 1.6
 unit LCLFormat;
 
 {$codepage UTF8}
