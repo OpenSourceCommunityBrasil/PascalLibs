@@ -1,6 +1,6 @@
 // Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-// version 1.0
+// version 1.0.1
 unit DAC.Postgres.Zeos;
 
 {$mode ObjFPC}{$H+}
@@ -107,8 +107,8 @@ begin
 
   if FileExists(DefaultDir + '\lib\libpq.dll') then
     Result := DefaultDir + '\lib\libpq.dll'
-  else if FileExists(DefaultDir + 'libpq.dll') then
-    Result := DefaultDir + 'libpq.dll'
+  else if FileExists(DefaultDir + '\libpq.dll') then
+    Result := DefaultDir + '\libpq.dll'
   else
     raise Exception.Create('libpq.dll' +
       ' precisa estar na raiz do executável ou na pasta \lib\');

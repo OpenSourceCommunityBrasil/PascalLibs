@@ -1,6 +1,6 @@
 // Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-// version 1.0
+// version 1.0.1
 unit DAC.Firebird.Zeos;
 
 interface
@@ -76,10 +76,10 @@ begin
     Result := DefaultDir + '\lib\fbclient.dll'
   else if FileExists(DefaultDir + '\lib\fbembed.dll') then
     Result := DefaultDir + '\lib\fbembed.dll'
-  else if FileExists(DefaultDir + 'fbclient.dll') then
-    Result := DefaultDir + 'fbclient.dll'
-  else if FileExists(DefaultDir + 'fbembed.dll') then
-    Result := DefaultDir + 'fbembed.dll'
+  else if FileExists(DefaultDir + '\fbclient.dll') then
+    Result := DefaultDir + '\fbclient.dll'
+  else if FileExists(DefaultDir + '\fbembed.dll') then
+    Result := DefaultDir + '\fbembed.dll'
   else
     raise Exception.Create('fbclient.dll ou fbembed.dll' +
       ' precisam estar na raiz do executável ou na pasta \lib\');

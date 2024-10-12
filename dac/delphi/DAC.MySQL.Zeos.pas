@@ -1,6 +1,6 @@
 ﻿// Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-// version 1.0
+// version 1.0.1
 unit DAC.MySQL.Zeos;
 
 interface
@@ -80,12 +80,12 @@ begin
     Result := DefaultDir + '\lib\libmariadb.dll'
   else if FileExists(DefaultDir + '\lib\libmysqld.dll') then
     Result := DefaultDir + '\lib\libmysqld.dll'
-  else if FileExists(DefaultDir + 'libmysql.dll') then
-    Result := DefaultDir + 'libmysql.dll'
-  else if FileExists(DefaultDir + 'libmariadb.dll') then
-    Result := DefaultDir + 'libmariadb.dll'
-  else if FileExists(DefaultDir + 'libmysqld.dll') then
-    Result := DefaultDir + 'libmysqld.dll'
+  else if FileExists(DefaultDir + '\libmysql.dll') then
+    Result := DefaultDir + '\libmysql.dll'
+  else if FileExists(DefaultDir + '\libmariadb.dll') then
+    Result := DefaultDir + '\libmariadb.dll'
+  else if FileExists(DefaultDir + '\libmysqld.dll') then
+    Result := DefaultDir + '\libmysqld.dll'
   else
     raise Exception.Create('libmysql.dll, libmariadb.dll ou libmysqld.dll' +
       ' precisam estar na raiz do executável ou na pasta \lib\');
