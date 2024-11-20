@@ -1,6 +1,6 @@
 ﻿// Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-// version 1.6
+// version 1.7
 unit FMXFormat;
 
 interface
@@ -13,8 +13,9 @@ const
   csNumbers = ['0' .. '9'];
   csIntegers = ['0' .. '9', '-'];
   csCharacters = ['a' .. 'z', 'A' .. 'Z'];
-  csCurrencyDigits = ['0' .. '1', '-', ','];
-  csFormatIdentifier = ['#', 'L', 'l', '9'];
+  csCurrencyDigits = ['0' .. '9', '-', ','];
+  csFormatIdentifier = ['#', 'L', 'l', '9', 'A'];
+  csAlphaNum = ['a' .. 'z', 'A' .. 'Z', '0' .. '9'];  
   csSymbols = ['\', '/', '-', '=', '+', '*', ',', '.', ';', ':', '|', '[', ']', '{', '}',
     '(', ')', '$', '%', '@', '#', '&', '!', '?', 'ª', 'º', '°', '₢', '£', '¢', '¬',
     '¨', '§'];
@@ -31,9 +32,11 @@ type
   TFormato = (None, &Date, Bits, CEP, CEST, CFOP, CNH, CNPJ, CNPJorCPF, CPF, CREA, CRM,
     Dinheiro, Hora, HoraCurta, InscricaoEstadual, NCM, OAB, Personalizado, Peso,
     Porcentagem, Telefone, TituloEleitor, Valor, VeiculoMercosul, VeiculoTradicional);
+  TTipoFormato = (tfNenhum, tfBits, tfCartao, tfCEP, tfCEST, tfCFOP, tfCNH, tfCNPJ,
+    tfCPF, tfCPFCNPJ, tfCREA, tfCRM, tfData, tfDinheiro, tfHora, tfHoraCurta,
+    tfInscricaoEstadual, tfNCM, tfOAB, tfPersonalizado, tfPeso, tfPorcentagem,
+    tfTelefone, tfTituloEleitor, tfValor, tfVeiculoMercosul, tfVeiculoTradicional);
 
-  // estados da federação 0..26 = 27 ok
-  // TODO: acrescentar código IBGE como índice padrão das siglas para facilidade de acesso
   TUF = (AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MG, MT, MS, PA, PB, PE, PI, PR, RJ, RN,
     RO, RR, RS, SC, SE, SP, &TO);
 
@@ -47,21 +50,28 @@ type
     function FormataHoraCurta(aStr: string): string;
     function FormataIE(aCod: string; UF: TUF): string;
     function FormataOAB(aStr: integer; UF: TUF): string;
-    function FormataPeso(aStr: string; aSeparador: boolean = false): string;
-    function FormataValor(aStr: string; aSeparador: boolean = false): string;
+    function FormataPeso(aStr: string; aSeparador: boolean = False): string;
+    function FormataValor(aStr: string; aSeparador: boolean = False): string;
     function Mask(Mascara, aStr: string): string;
   public
     function AlfaNumerico(aStr: string): string;
     function Decimal(aStr: string): string; overload;
-    function Decimal(aStr: string; aPrecisao: integer): Double; overload;
-    function Formatar(Formato: TFormato; Texto: string): string; overload;
-    function Formatar(Formato: TFormato; Texto: string; ExtraArg: Variant)
-      : string; overload;
+    function Decimal(aStr: string; aPrecisao: integer): double; overload;
+    function Formatar(Formato: TFormato; Texto: string): string;
+      overload; deprecated 'essa funcao vai ser removida, substitua o tipo TFormato por TTipoFormato';
+    function Formatar(Formato: TFormato; Texto: string; ExtraArg: variant): string;
+      overload; deprecated 'essa funcao vai ser removida, substitua o tipo TFormato por TTipoFormato';
+    function Formatar(Formato: TTipoFormato; Texto: string): string; overload;
+    function Formatar(Formato: TTipoFormato; Texto: string; ExtraArg: variant): string; overload;
     function Inteiro(aStr: string): string;
     function Primeiros(aStr: string; aDigitos: integer): string;
     function RemoveAcentos(aStr: string): string;
     function SomenteNumero(aStr: string): string;
     function Ultimos(aStr: string; aDigitos: integer): string;
+
+    function ValidaCPF(aCPF: string): boolean;
+    function ValidaCNPJ(aCPNJ: string): boolean;
+    function BandeiraCartao(aCartao: string): string;
   end;
 
   TEditHelper = class helper for TEdit
@@ -69,9 +79,13 @@ type
     function AlfaNumerico: string;
     function Decimal: string;
     procedure Formatar(aFormato: TFormato); overload;
-    procedure Formatar(aFormato: TFormato; ExtraArg: Variant); overload;
+      deprecated 'essa funcao vai ser removida, substitua o tipo TFormato por TTipoFormato';
+    procedure Formatar(aFormato: TFormato; ExtraArg: variant); overload;
+      deprecated 'essa funcao vai ser removida, substitua o tipo TFormato por TTipoFormato';
+    procedure Formatar(aFormato: TTipoFormato); overload;
+    procedure Formatar(aFormato: TTipoFormato; ExtraArg: variant); overload;
     function Inteiro: string;
-    function RemoveAcentos(aStr: string): string;
+    function RemoveAcentos: string;
     function SomenteNumero: string;
   end;
 
@@ -80,9 +94,13 @@ type
     function AlfaNumerico: string;
     function Decimal: string;
     procedure Formatar(aFormato: TFormato); overload;
-    procedure Formatar(aFormato: TFormato; ExtraArg: Variant); overload;
+      deprecated 'essa funcao vai ser removida, substitua o tipo TFormato por TTipoFormato';
+    procedure Formatar(aFormato: TFormato; ExtraArg: variant);
+      overload; deprecated 'essa funcao vai ser removida, substitua o tipo TFormato por TTipoFormato';
+    procedure Formatar(aFormato: TTipoFormato); overload;
+    procedure Formatar(aFormato: TTipoFormato; ExtraArg: variant); overload;
     function Inteiro: string;
-    function RemoveAcentos(aStr: string): string;
+    function RemoveAcentos: string;
     function SomenteNumero: string;
   end;
 
@@ -91,16 +109,55 @@ type
     function AlfaNumerico: string;
     function Decimal: string;
     procedure Formatar(aFormato: TFormato); overload;
-    procedure Formatar(aFormato: TFormato; ExtraArg: Variant); overload;
+      deprecated 'essa funcao vai ser removida, substitua o tipo TFormato por TTipoFormato';
+    procedure Formatar(aFormato: TFormato; ExtraArg: variant);
+      overload; deprecated 'essa funcao vai ser removida, substitua o tipo TFormato por TTipoFormato';
+    procedure Formatar(aFormato: TTipoFormato); overload;
+    procedure Formatar(aFormato: TTipoFormato; ExtraArg: variant); overload;
     function Inteiro: string;
     function RemoveAcentos(aStr: string): string;
     function SomenteNumero: string;
   end;
 
+// Função auxiliar geral temporária. Será removida juntamente das funções depreciadas.
+function FormatoToTipo(AFormato: TFormato): TTipoFormato;
+
 var
   Formato: TFormatHelper;
 
 implementation
+
+function FormatoToTipo(AFormato: TFormato): TTipoFormato;
+begin
+  case AFormato of
+    None: Result := tfNenhum;
+    &Date: Result := tfData;
+    Bits: Result := tfBits;
+    CEP: Result := tfCEP;
+    CEST: Result := tfCEST;
+    CFOP: Result := tfCFOP;
+    CNH: Result := tfCNH;
+    CNPJ: Result := tfCNPJ;
+    CNPJorCPF: Result := tfCPFCNPJ;
+    CPF: Result := tfCPF;
+    CREA: Result := tfCREA;
+    CRM: Result := tfCRM;
+    Dinheiro: Result := tfDinheiro;
+    Hora: Result := tfHora;
+    HoraCurta: Result := tfHoraCurta;
+    InscricaoEstadual: Result := tfInscricaoEstadual;
+    NCM: Result := tfNCM;
+    OAB: Result := tfOAB;
+    Personalizado: Result := tfPersonalizado;
+    Peso: Result := tfPeso;
+    Porcentagem: Result := tfPorcentagem;
+    Telefone: Result := tfTelefone;
+    TituloEleitor: Result := tfTituloEleitor;
+    Valor: Result := tfValor;
+    VeiculoMercosul: Result := tfVeiculoMercosul;
+    VeiculoTradicional: Result := tfVeiculoTradicional;
+  end;
+end;
 
 { TFormatHelper }
 
@@ -111,8 +168,8 @@ var
   I: integer;
 begin
   Result := '';
-  for I := 0 to pred(aStr.Length) do
-    if not CharInSet(aStr[I], csSymbols) then
+  for I := 1 to aStr.Length do
+    if CharInSet(aStr[I], csAlphaNum) then
       Result := Result + aStr[I];
 end;
 
@@ -121,7 +178,7 @@ var
   I: integer;
 begin
   Result := '';
-  for I := 0 to pred(aStr.Length) do
+  for I := 1 to aStr.Length do
     if CharInSet(aStr.Chars[I], csCurrencyDigits) then
       Result := Result + aStr.Chars[I];
 end;
@@ -139,7 +196,7 @@ begin
     aPrecisao := 2;
 
   Valor := '';
-  for I := 0 to pred(aStr.Length) do
+  for I := 1 to aStr.Length do
     if CharInSet(aStr.Chars[I], csCurrencyDigits) then
       Valor := Valor + aStr.Chars[I];
 
@@ -392,99 +449,116 @@ begin
   Result := Formatar(Formato, Texto, varNull);
 end;
 
+// <returns> Formata o valor do "Texto" baseado no tipo de "Formato" definido.</returns>
+// <param name="ExtraArg">serve para usar uma máscara própria quando utilizar o formato 'TFormato.Personalizado' ou
+// se tiver valor, formata o texto na inscrição estadual referente àquele estado, ou
+// é utilizado em alguns tipos de formatação para definir precisão de dígitos</param>
+function TFormatHelper.Formatar(Formato: TFormato; Texto: string; ExtraArg: variant): string;
+begin
+  Result := Formatar(FormatoToTipo(Formato), Texto, ExtraArg);
+end;
+
+function TFormatHelper.Formatar(Formato: TTipoFormato; Texto: string): string;
+begin
+  Result := Formatar(Formato, Texto, varNull);
+end;
+
 /// <returns> Formata o valor do "Texto" baseado no tipo de "Formato" definido.</returns>
 /// <param name="ExtraArg">serve para usar uma máscara própria quando utilizar o formato 'TFormato.Personalizado' ou
 /// se tiver valor, formata o texto na inscrição estadual referente àquele estado, ou
 /// é utilizado em alguns tipos de formatação para definir precisão de dígitos</param>
-function TFormatHelper.Formatar(Formato: TFormato; Texto: string;
-  ExtraArg: Variant): string;
+function TFormatHelper.Formatar(Formato: TTipoFormato; Texto: string; ExtraArg: variant): string;
 begin
   case Formato of
-    None:
+    tfNenhum:
       Texto := AlfaNumerico(Texto);
 
-    &Date:
-      Texto := FormataData(SomenteNumero(Texto));
-
-    Bits:
+    tfBits:
+      //raise Exception.Create('Recurso em implementação');
       Texto := FormataBits(Decimal(Texto));
 
-    CEP:
+    tfCartao:
+      Texto := Mask('9999 9999 9999 9999', SomenteNumero(Texto));
+
+    tfCEP:
       Texto := Mask('99.999-999', SomenteNumero(Texto));
 
-    CEST:
+    tfCEST:
       Texto := Mask('99.999.99', SomenteNumero(Texto));
 
-    CFOP:
+    tfCFOP:
       Texto := Mask('9.999', SomenteNumero(Texto));
 
-    CNH:
+    tfCNH:
       Texto := Mask('###########', AlfaNumerico(Texto));
 
-    CNPJ:
-      Texto := Mask('99.999.999/9999-99', SomenteNumero(Texto));
+    tfCNPJ:
+      Texto := Mask('AA.AAA.AAA/AAAA-99', AlfaNumerico(Texto));
 
-    CNPJorCPF:
+    tfCPF:
+      Texto := Mask('999.999.999-99', SomenteNumero(Texto));
+
+    tfCPFCNPJ:
       if Length(SomenteNumero(Texto)) <= 11 then
         Texto := Mask('999.999.999-99', SomenteNumero(Texto))
       else
-        Texto := Mask('99.999.999/9999-99', SomenteNumero(Texto));
+        Texto := Mask('AA.AAA.AAA/AAAA-99', AlfaNumerico(Texto));
 
-    CPF:
-      Texto := Mask('999.999.999-99', SomenteNumero(Texto));
-
-    CREA:
+    tfCREA:
       Texto := Mask('999999999-9', SomenteNumero(Texto));
 
-    CRM:
+    tfCRM:
       Texto := FormataCRM(StrToIntDef(Ultimos(SomenteNumero(Texto), 6), 0), ExtraArg);
 
-    Dinheiro:
+    tfData:
+      Texto := FormataData(SomenteNumero(Texto));
+
+    tfDinheiro:
       if ExtraArg <> varNull then
         Texto := FormataDinheiro(Texto, ExtraArg)
       else
         Texto := FormataDinheiro(Texto);
 
-    Hora:
+    tfHora:
       Texto := FormataHora(SomenteNumero(Texto));
 
-    HoraCurta:
+    tfHoraCurta:
       Texto := FormataHoraCurta(SomenteNumero(Texto));
 
-    InscricaoEstadual:
+    tfInscricaoEstadual:
       Texto := FormataIE(SomenteNumero(Texto), ExtraArg);
 
-    NCM:
+    tfNCM:
       Texto := Mask('9999.99.99', SomenteNumero(Texto));
 
-    OAB:
+    tfOAB:
       Texto := FormataOAB(StrToIntDef(Ultimos(SomenteNumero(Texto), 6), 0), ExtraArg);
 
-    Personalizado:
+    tfPersonalizado:
       Texto := Mask(ExtraArg, SomenteNumero(Texto));
 
-    Peso:
+    tfPeso:
       Texto := FormataPeso(SomenteNumero(Texto));
 
-    Porcentagem:
+    tfPorcentagem:
       Texto := Format('%.2f %%', [Decimal(Texto, 2)]);
 
-    Telefone:
+    tfTelefone:
       if Length(SomenteNumero(Texto)) <= 10 then
         Texto := Mask('(99) 9999-9999', SomenteNumero(Texto))
       else
         Texto := Mask('(99) 99999-9999', SomenteNumero(Texto));
 
-    TituloEleitor:
+    tfTituloEleitor:
       Texto := Mask('9999 9999 9999 99', SomenteNumero(Texto));
 
-    Valor:
+    tfValor:
       Texto := FormataValor(Texto, ExtraArg);
 
-    VeiculoMercosul:
+    tfVeiculoMercosul:
       Texto := Mask('#######', AlfaNumerico(Texto));
 
-    VeiculoTradicional:
+    tfVeiculoTradicional:
       Texto := Mask('LLL-9999', AlfaNumerico(Texto));
   end;
 
@@ -514,7 +588,7 @@ var
   I: integer;
 begin
   Result := '';
-  for I := 0 to Length(aStr) - 1 do
+  for I := 1 to Length(aStr) do
     if CharInSet(aStr.Chars[I], csIntegers) then
       Result := Result + aStr.Chars[I];
 end;
@@ -541,6 +615,12 @@ begin
       begin
         Result := Result + aStr.Chars[textidx];
         inc(textidx);
+      end
+      else if (Mascara.Chars[maskidx] = 'A') and CharInSet(aStr.Chars[textidx],
+        csAlphaNum) then
+      begin
+        Result := Result + aStr.Chars[textidx];
+        Inc(textidx);
       end
       else if (Mascara.Chars[maskidx] = 'L') and CharInSet(aStr.Chars[textidx],
         csCharacters) then
@@ -595,7 +675,7 @@ var
   x: integer;
 begin
   Result := '';
-  for x := 0 to Length(aStr) - 1 do
+  for x := 1 to Length(aStr) do
     if CharInSet(aStr.Chars[x], csNumbers) then
       Result := Result + aStr.Chars[x];
 end;
@@ -607,6 +687,166 @@ function TFormatHelper.Ultimos(aStr: string; aDigitos: integer): string;
 begin
   if not(aStr = '') then
     Result := RightStr(aStr, aDigitos);
+end;
+
+function TFormatHelper.ValidaCPF(aCPF: string): boolean;
+var
+  dig10, dig11: string;
+  dv, i, r, peso: integer;
+begin
+  // tratamento da entrada de dados
+  aCPF := SomenteNumero(aCPF);
+
+  // tratamento de valores inválidos
+  if ((aCPF = '00000000000') or (aCPF = '11111111111') or (aCPF = '22222222222') or
+    (aCPF = '33333333333') or (aCPF = '44444444444') or (aCPF = '55555555555') or
+    (aCPF = '66666666666') or (aCPF = '77777777777') or (aCPF = '88888888888') or
+    (aCPF = '99999999999') or (length(aCPF) <> 11)) then
+    Result := False
+  else
+  begin
+    try
+      { *-- Cálculo do 1o. Digito Verificador --* }
+      dv := 0;
+      peso := 10;
+      for i := 1 to 9 do
+      begin
+        dv := dv + (StrToInt(aCPF[i]) * peso);
+        Dec(peso);
+      end;
+
+      r := 11 - (dv mod 11);
+      if ((r = 10) or (r = 11)) then dig10 := '0'
+      else
+        str(r: 1, dig10); // converte um número no respectivo caractere numérico
+
+      { *-- Cálculo do 2o. Digito Verificador --* }
+      dv := 0;
+      peso := 11;
+      for i := 1 to 10 do
+      begin
+        dv := dv + (StrToInt(aCPF[i]) * peso);
+        Dec(peso);
+      end;
+      r := 11 - (dv mod 11);
+      if ((r = 10) or (r = 11)) then dig11 := '0'
+      else
+        str(r: 1, dig11);
+
+      { Verifica se os digitos calculados conferem com os digitos informados. }
+      if ((dig10 = aCPF[10]) and (dig11 = aCPF[11])) then Result := True
+      else
+        Result := False;
+    except
+      Result := False
+    end;
+  end;
+end;
+
+function TFormatHelper.ValidaCNPJ(aCPNJ: string): boolean;
+var
+  dig13, dig14: string;
+  soma, i, r, peso: integer;
+begin
+  // tratamento da entrada de dados
+  aCPNJ := AlfaNumerico(aCPNJ);
+
+  // validação dos valores
+  if ((aCPNJ = '00000000000000') or (aCPNJ = '11111111111111') or
+    (aCPNJ = '22222222222222') or (aCPNJ = '33333333333333') or (aCPNJ = '44444444444444') or
+    (aCPNJ = '55555555555555') or (aCPNJ = '66666666666666') or (aCPNJ = '77777777777777') or
+    (aCPNJ = '88888888888888') or (aCPNJ = '99999999999999') or (length(aCPNJ) <> 14)) then
+    Result := False
+  else
+  begin
+    try
+      { *-- Cálculo do 1o. Digito Verificador --* }
+      soma := 0;
+      peso := 2;
+      for i := 12 downto 1 do
+      begin
+        soma := soma + (StrToInt(aCPNJ[i]) * peso);
+        Inc(peso);
+        if (peso = 10) then peso := 2;
+      end;
+      r := soma mod 11;
+      if ((r = 0) or (r = 1)) then dig13 := '0'
+      else
+        str((11 - r): 1, dig13); // converte um número no respectivo caractere numérico
+
+      { *-- Cálculo do 2o. Digito Verificador --* }
+      soma := 0;
+      peso := 2;
+      for i := 13 downto 1 do
+      begin
+        soma := soma + (StrToInt(aCPNJ[i]) * peso);
+        Inc(peso);
+        if (peso = 10) then peso := 2;
+      end;
+      r := soma mod 11;
+      if ((r = 0) or (r = 1)) then dig14 := '0'
+      else
+        str((11 - r): 1, dig14);
+
+      { Verifica se os digitos calculados conferem com os digitos informados. }
+      if ((dig13 = aCPNJ[13]) and (dig14 = aCPNJ[14])) then Result := True
+      else
+        Result := False;
+    except
+      Result := False
+    end;
+  end;
+end;
+
+function TFormatHelper.BandeiraCartao(aCartao: string): string;
+var
+  digitos: string;
+  p1, p2, p3, p4, p6: integer;
+begin
+  // validação de entrada
+  digitos := SomenteNumero(aCartao);
+
+  p1 := StrToIntDef(primeiros(digitos, 1), 0);
+  p2 := StrToIntDef(primeiros(digitos, 2), 0);
+  p3 := StrToIntDef(primeiros(digitos, 3), 0);
+  p4 := StrToIntDef(primeiros(digitos, 4), 0);
+  p6 := StrToIntDef(primeiros(digitos, 6), 0);
+
+  // validar os dígitos:
+  {Visa: Começa com o dígito 4 (BIN de 400000 a 499999)
+   Mastercard: Começa com os dígitos 51 a 55, e mais recentemente com 2221 a 2720
+   American Express: Começa com os dígitos 34 ou 37
+   Elo: Varia, mas inclui faixas como 438935, 451416, 5067, 4576, 4011, 504175 e 506699
+   Diners Club: Começa com 301, 305, 36 ou 38
+   Discover: Começa com 6011, 622126 a 622925, 644 a 649, 65
+   Discover: 6011, 622, 64 e 65
+   JCB: Começa com 3528 a 3589
+   Hipercard: Começa com 606282 ou 384100 a 384199
+   Aura: 50
+   }
+
+  if p1 = 4 then
+    Result := 'Visa'
+  else if (p2 = 34) or (p2 = 37) then
+    Result := 'American Express'
+  else if (p2 = 36) or (p2 = 38) or (p3 = 301) or (p3 = 305) then
+    Result := 'Diners Club'
+  else if (p4 >= 3528) and (p4 <= 3589) then
+    Result := 'JCB'
+  else if (p2 = 65) or ((p3 >= 644) and (p3 <= 649)) or (p4 = 6011) or
+    ((p6 >= 622126) and (p6 <= 622925)) then
+    Result := 'Discover'
+  else if ((p2 >= 51) and (p2 <= 55)) or ((p4 >= 2221) and (p4 <= 2720)) then
+    Result := 'Mastercard'
+  else if (p4 = 4011) or (p6 = 438935) or (p6 = 451416) or (p4 = 4576) or
+    (p4 = 5067) or ((p6 >= 504175) and (p6 <= 506699)) then
+    Result := 'Elo'
+  else if (p6 = 606282) or ((p6 >= 384100) and (p6 <= 384199)) then
+    Result := 'Hipercard'
+  else if (p2 = 50) and (p3 <> 506) then
+    Result := 'Aura'
+  else
+    Result := '';
 end;
 
 { TEditHelper }
@@ -625,7 +865,7 @@ end;
 
 procedure TEditHelper.Formatar(aFormato: TFormato);
 begin
-  Self.Text := Formato.Formatar(aFormato, Self.Text, varNull);
+  Self.Text := Formato.Formatar(FormatoToTipo(aFormato), Self.Text, varNull);
   Self.GoToTextEnd;
 end;
 
@@ -635,12 +875,24 @@ begin
   Self.GoToTextEnd;
 end;
 
-function TEditHelper.RemoveAcentos(aStr: string): string;
+function TEditHelper.RemoveAcentos: string;
 begin
   Result := Formato.RemoveAcentos(Self.Text);
 end;
 
-procedure TEditHelper.Formatar(aFormato: TFormato; ExtraArg: Variant);
+procedure TEditHelper.Formatar(aFormato: TFormato; ExtraArg: variant);
+begin
+  Self.Text := Formato.Formatar(FormatoToTipo(aFormato), Self.Text, ExtraArg);
+  Self.GoToTextEnd;
+end;
+
+procedure TEditHelper.Formatar(aFormato: TTipoFormato);
+begin
+  Self.Text := Formato.Formatar(aFormato, Self.Text, varNull);
+  Self.GoToTextEnd;
+end;
+
+procedure TEditHelper.Formatar(aFormato: TTipoFormato; ExtraArg: variant);
 begin
   Self.Text := Formato.Formatar(aFormato, Self.Text, ExtraArg);
   Self.GoToTextEnd;
@@ -666,10 +918,20 @@ end;
 
 procedure TTextHelper.Formatar(aFormato: TFormato);
 begin
+  Self.Text := Formato.Formatar(FormatoToTipo(aFormato), Self.Text, varNull);
+end;
+
+procedure TTextHelper.Formatar(aFormato: TFormato; ExtraArg: variant);
+begin
+  Self.Text := Formato.Formatar(FormatoToTipo(aFormato), Self.Text, ExtraArg);
+end;
+
+procedure TTextHelper.Formatar(aFormato: TTipoFormato);
+begin
   Self.Text := Formato.Formatar(aFormato, Self.Text, varNull);
 end;
 
-procedure TTextHelper.Formatar(aFormato: TFormato; ExtraArg: Variant);
+procedure TTextHelper.Formatar(aFormato: TTipoFormato; ExtraArg: variant);
 begin
   Self.Text := Formato.Formatar(aFormato, Self.Text, ExtraArg);
 end;
@@ -701,14 +963,24 @@ begin
   Result := Formato.Decimal(Self.Text);
 end;
 
-procedure TLabelHelper.Formatar(aFormato: TFormato);
+procedure TLabelHelper.Formatar(aFormato: TTipoFormato);
 begin
   Self.Text := Formato.Formatar(aFormato, Self.Text, varNull);
 end;
 
-procedure TLabelHelper.Formatar(aFormato: TFormato; ExtraArg: Variant);
+procedure TLabelHelper.Formatar(aFormato: TTipoFormato; ExtraArg: Variant);
 begin
   Self.Text := Formato.Formatar(aFormato, Self.Text, ExtraArg);
+end;
+
+procedure TLabelHelper.Formatar(aFormato: TFormato);
+begin
+  Self.Text := Formato.Formatar(FormatoToTipo(aFormato), Self.Text, varNull);
+end;
+
+procedure TLabelHelper.Formatar(aFormato: TFormato; ExtraArg: Variant);
+begin
+  Self.Text := Formato.Formatar(FormatoToTipo(aFormato), Self.Text, ExtraArg);
 end;
 
 function TLabelHelper.Inteiro: string;
@@ -716,7 +988,7 @@ begin
   Result := Formato.Inteiro(Self.Text);
 end;
 
-function TLabelHelper.RemoveAcentos(aStr: string): string;
+function TLabelHelper.RemoveAcentos: string;
 begin
   Result := Formato.RemoveAcentos(Self.Text);
 end;

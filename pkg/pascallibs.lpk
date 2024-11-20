@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Package Version="5">
+    <PathDelim Value="\"/>
+    <Name Value="PascalLibs"/>
+    <AddToProjectUsesSection Value="True"/>
+    <Author Value="OpenSourceCommunityBrasil"/>
+    <CompilerOptions>
+      <Version Value="11"/>
+      <PathDelim Value="\"/>
+      <SearchPaths>
+        <OtherUnitFiles Value="..\format;..\log\lazarus;..\other\Lazarus"/>
+        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      </SearchPaths>
+      <Linking>
+        <Debugging>
+          <DebugInfoType Value="dsDwarf3"/>
+        </Debugging>
+      </Linking>
+    </CompilerOptions>
+    <Description Value="Package of common pascal functions for project usage"/>
+    <Version Major="1"/>
+    <Files Count="4">
+      <Item1>
+        <Filename Value="..\format\lclformat.pas"/>
+        <UnitName Value="LCLFormat"/>
+      </Item1>
+      <Item2>
+        <Filename Value="..\log\lazarus\Log.TextFile.pas"/>
+        <UnitName Value="Log.TextFile"/>
+      </Item2>
+      <Item3>
+        <Filename Value="..\other\Lazarus\hwmonitorutils.pas"/>
+        <UnitName Value="HWMonitorUtils"/>
+      </Item3>
+      <Item4>
+        <Filename Value="..\other\Lazarus\cpf_cnpj.pas"/>
+        <UnitName Value="cpf_cnpj"/>
+      </Item4>
+    </Files>
+    <CompatibilityMode Value="True"/>
+    <RequiredPkgs Count="2">
+      <Item1>
+        <PackageName Value="LCLBase"/>
+      </Item1>
+      <Item2>
+        <PackageName Value="FCL"/>
+      </Item2>
+    </RequiredPkgs>
+    <UsageOptions>
+      <UnitPath Value="$(PkgOutDir)"/>
+    </UsageOptions>
+    <PublishOptions>
+      <Version Value="2"/>
+      <UseFileFilters Value="True"/>
+    </PublishOptions>
+  </Package>
+</CONFIG>

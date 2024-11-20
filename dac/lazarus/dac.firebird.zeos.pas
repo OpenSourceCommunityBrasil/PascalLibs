@@ -1,6 +1,6 @@
 // Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-// version 1.0.1
+// version 1.0.2
 unit DAC.Firebird.Zeos;
 
 {$mode ObjFPC}{$H+}
@@ -92,7 +92,7 @@ end;
 function TDAC.getQuery: TQuery;
 begin
   if not Assigned(FQuery) then
-    FQuery := TFDQuery.Create(nil);
+    FQuery := TQuery.Create(nil);
   Result := FQuery;
 end;
 

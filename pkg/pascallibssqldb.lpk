@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Package Version="5">
+    <PathDelim Value="\"/>
+    <Name Value="PascalLibsSQLDB"/>
+    <AddToProjectUsesSection Value="True"/>
+    <Author Value="OpenSourceCommunityBrasil"/>
+    <CompilerOptions>
+      <Version Value="11"/>
+      <PathDelim Value="\"/>
+      <SearchPaths>
+        <OtherUnitFiles Value="..\config\lazarus;..\dac\lazarus;..\dao\lazarus"/>
+        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      </SearchPaths>
+      <Linking>
+        <Debugging>
+          <DebugInfoType Value="dsDwarf3"/>
+        </Debugging>
+      </Linking>
+    </CompilerOptions>
+    <Description Value="Collection of useful pascal libraries with SQLDB depedancy"/>
+    <Version Major="1"/>
+    <Files Count="5">
+      <Item1>
+        <Filename Value="..\config\lazarus\config.sqlite.sqldb.pas"/>
+        <UnitName Value="Config.SQLite.SQLdb"/>
+      </Item1>
+      <Item2>
+        <Filename Value="..\dac\lazarus\dac.firebird.sqldb.pas"/>
+        <UnitName Value="DAC.Firebird.SQLDB"/>
+      </Item2>
+      <Item3>
+        <Filename Value="..\dac\lazarus\dac.mysql.sqldb.pas"/>
+        <UnitName Value="DAC.MySQL.SQLDB"/>
+      </Item3>
+      <Item4>
+        <Filename Value="..\dac\lazarus\dac.postgres.sqldb.pas"/>
+        <UnitName Value="DAC.Postgres.SQLDB"/>
+      </Item4>
+      <Item5>
+        <Filename Value="..\dao\lazarus\crudbase.sqldb.pas"/>
+        <UnitName Value="CRUDBase.SQLDB"/>
+      </Item5>
+    </Files>
+    <CompatibilityMode Value="True"/>
+    <RequiredPkgs Count="2">
+      <Item1>
+        <PackageName Value="LCL"/>
+      </Item1>
+      <Item2>
+        <PackageName Value="FCL"/>
+      </Item2>
+    </RequiredPkgs>
+    <UsageOptions>
+      <UnitPath Value="$(PkgOutDir)"/>
+    </UsageOptions>
+    <PublishOptions>
+      <Version Value="2"/>
+      <UseFileFilters Value="True"/>
+    </PublishOptions>
+  </Package>
+</CONFIG>

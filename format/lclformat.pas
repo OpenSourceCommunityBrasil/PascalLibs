@@ -1,6 +1,6 @@
 ﻿// Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-// version 1.7
+// version 1.7.1
 unit LCLFormat;
 
 {$codepage UTF8}
@@ -18,8 +18,9 @@ const
   csNumbers = ['0' .. '9'];
   csIntegers = ['0' .. '9', '-'];
   csCharacters = ['a' .. 'z', 'A' .. 'Z'];
-  csCurrencyDigits = ['0' .. '1', '-', ','];
-  csFormatIdentifier = ['#', 'L', 'l', '9'];
+  csCurrencyDigits = ['0' .. '9', '-', ','];
+  csFormatIdentifier = ['#', 'L', 'l', '9', 'A'];
+  csAlphaNum = ['a' .. 'z', 'A' .. 'Z', '0' .. '9'];
   csSymbols: array[0..32] of string = ('\', '/', '-', '=', '+', '*', ',', '.', ';', ':',
     '|', '[', ']', '{', '}', '(', ')', '$', '%', '@', '#', '&', '!',
     '?', 'ª', 'º', '°', '₢', '£', '¢', '¬', '¨', '§');
@@ -206,8 +207,8 @@ var
   I: integer;
 begin
   Result := '';
-  for I := 0 to pred(Length(aStr)) do
-    if not (aStr[I] in csSymbols) then
+  for I := 1 to Length(aStr) do
+    if (aStr[I] in csAlphaNum) then
       Result := Result + aStr[I];
 end;
 
@@ -216,7 +217,7 @@ var
   I: integer;
 begin
   Result := '';
-  for I := 0 to pred(aStr.Length) do
+  for I := 1 to aStr.Length do
     if CharInSet(aStr.Chars[I], csCurrencyDigits) then
       Result := Result + aStr.Chars[I];
 end;
@@ -235,7 +236,7 @@ begin
 
   Result := 0;
   Valor := '';
-  for I := 0 to pred(aStr.Length) do
+  for I := 1 to aStr.Length do
     if CharInSet(aStr.Chars[I], csCurrencyDigits) then
       Valor := Valor + aStr.Chars[I];
 
@@ -530,7 +531,7 @@ begin
       Texto := Mask('###########', AlfaNumerico(Texto));
 
     tfCNPJ:
-      Texto := Mask('99.999.999/9999-99', SomenteNumero(Texto));
+      Texto := Mask('AA.AAA.AAA/AAAA-99', AlfaNumerico(Texto));
 
     tfCPF:
       Texto := Mask('999.999.999-99', SomenteNumero(Texto));
@@ -539,7 +540,7 @@ begin
       if Length(SomenteNumero(Texto)) <= 11 then
         Texto := Mask('999.999.999-99', SomenteNumero(Texto))
       else
-        Texto := Mask('99.999.999/9999-99', SomenteNumero(Texto));
+        Texto := Mask('AA.AAA.AAA/AAAA-99', AlfaNumerico(Texto));
 
     tfCREA:
       Texto := Mask('999999999-9', SomenteNumero(Texto));
@@ -625,7 +626,7 @@ var
   I: integer;
 begin
   Result := '';
-  for I := 0 to Length(aStr) - 1 do
+  for I := 1 to Length(aStr) do
     if CharInSet(aStr.Chars[I], csIntegers) then
       Result := Result + aStr.Chars[I];
 end;
@@ -646,9 +647,15 @@ begin
   Result := '';
 
   if not aStr.IsEmpty then
-    for maskidx := 0 to Length(Mascara) - 1 do
+    for maskidx := 0 to pred(Length(Mascara)) do
     begin
       if Mascara.Chars[maskidx] = '#' then
+      begin
+        Result := Result + aStr.Chars[textidx];
+        Inc(textidx);
+      end
+      else if (Mascara.Chars[maskidx] = 'A') and CharInSet(aStr.Chars[textidx],
+        csAlphaNum) then
       begin
         Result := Result + aStr.Chars[textidx];
         Inc(textidx);
@@ -709,7 +716,7 @@ var
   I: integer;
 begin
   Result := '';
-  for I := 0 to Length(aStr) - 1 do
+  for I := 1 to Length(aStr) do
     if CharInSet(aStr.Chars[I], csNumbers) then
       Result := Result + aStr.Chars[I];
 end;
@@ -783,7 +790,7 @@ var
   soma, i, r, peso: integer;
 begin
   // tratamento da entrada de dados
-  aCPNJ := SomenteNumero(aCPNJ);
+  aCPNJ := AlfaNumerico(aCPNJ);
 
   // validação dos valores
   if ((aCPNJ = '00000000000000') or (aCPNJ = '11111111111111') or
@@ -799,7 +806,7 @@ begin
       peso := 2;
       for i := 12 downto 1 do
       begin
-        soma := soma + (StrToInt(aCPNJ[i]) * peso);
+        soma := soma + ((ord(aCPNJ[i]) - 48) * peso);
         Inc(peso);
         if (peso = 10) then peso := 2;
       end;
@@ -813,7 +820,7 @@ begin
       peso := 2;
       for i := 13 downto 1 do
       begin
-        soma := soma + (StrToInt(aCPNJ[i]) * peso);
+        soma := soma + ((ord(aCPNJ[i]) - 48) * peso);
         Inc(peso);
         if (peso = 10) then peso := 2;
       end;
