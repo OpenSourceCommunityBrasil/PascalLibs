@@ -716,7 +716,7 @@ var
   I: integer;
 begin
   Result := '';
-  for I := 1 to Length(aStr) do
+  for I := 0 to Length(aStr) - 1 do
     if CharInSet(aStr.Chars[I], csNumbers) then
       Result := Result + aStr.Chars[I];
 end;
