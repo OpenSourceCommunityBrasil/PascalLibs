@@ -1,6 +1,6 @@
 ﻿// Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-// version 1.1
+// version 1.2
 unit DAO.REST;
 
 // comment this line to make this unit handle VCL controls instead of FMX.
@@ -31,6 +31,10 @@ type
     FStatusCode: integer;
     FUserAgent: string;
     FGrid: TStringGrid;
+    FResponseText: string;
+    FResponseJSON: TJSONValue;
+    FResponseBytes: TBytes;
+    FResponseLength: Cardinal;
     procedure SetBaseURL(const Value: string);
     procedure SetUserAgent(const Value: string);
     procedure doRequest;
@@ -71,6 +75,10 @@ type
 
     property BaseURL: string read FBaseURL write SetBaseURL;
     property Response: TRESTResponse read FResponse;
+    property ResponseBytes: TBytes read FResponseBytes;
+    property ResponseLength: Cardinal read FResponseLength;
+    property ResponseText: string read FResponseText;
+    property ResponseJSON: TJSONValue read FResponseJSON;
     property StatusCode: integer read FStatusCode;
     property UserAgent: string read FUserAgent write SetUserAgent;
   end;
@@ -161,13 +169,14 @@ end;
 procedure TDAOClientREST.Delete;
 begin
   FRESTRequest.Method := rmDELETE;
-  FRESTRequest.Execute;
+  doRequest;
 end;
 
 destructor TDAOClientREST.Destroy;
 begin
   FreeAndNil(FAdapter);
-  FreeAndNil(FResponse);
+  if Assigned(FResponse) then
+    FreeAndNil(FResponse);
   FreeAndNil(FRESTRequest);
   FreeAndNil(FBasicAuth);
   FreeAndNil(FRESTClient);
@@ -213,17 +222,32 @@ end;
 
 procedure TDAOClientREST.doRequest;
 begin
-  FRESTRequest.Execute;
-  FResponse := TRESTResponse(FRESTRequest.Response);
-  FStatusCode := FRESTRequest.Response.StatusCode;
-  if assigned(FMemTable) then
-  begin
-    FAdapter.Dataset := FMemTable;
-    FAdapter.Response := FResponse;
-    FAdapter.Active := true;
+  try
+    try
+      FRESTRequest.Execute;
+    finally
+      FResponse := TRESTResponse(FRESTRequest.Response);
+      FStatusCode := FRESTRequest.Response.StatusCode;
+      FResponseText := FResponse.Content;
+      FResponseJSON := FResponse.JSONValue;
+      FResponseBytes := FResponse.RawBytes;
+      FResponseLength := FResponse.ContentLength;
+      if assigned(FMemTable) then
+      begin
+        FAdapter.Dataset := FMemTable;
+        FAdapter.Response := FResponse;
+        FAdapter.Active := true;
+      end;
+      if assigned(FGrid) then
+        doFillGrid;
+    end;
+  except
+    on e: exception do
+    begin
+      FStatusCode := 500;
+      FResponseText := e.Message;
+    end;
   end;
-  if assigned(FGrid) then
-    doFillGrid;
 end;
 
 procedure TDAOClientREST.Get;
@@ -332,8 +356,8 @@ begin
   FRESTRequest.AddBody(ABodyContent, AContentType);
 end;
 
-function TDAOClientREST.AddBody(AName: string; AValue: TStream;
-  AContentType: string): TDAOClientREST;
+function TDAOClientREST.AddBody(AName: string; AValue: TStream; AContentType: string)
+  : TDAOClientREST;
 begin
   Result := Self;
   FRESTRequest.AddParameter(AName, TStringStream(AValue).DataString, pkREQUESTBODY);
