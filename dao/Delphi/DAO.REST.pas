@@ -1,6 +1,6 @@
 ﻿// Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-// version 1.2
+// version 1.3
 unit DAO.REST;
 
 // comment this line to make this unit handle VCL controls instead of FMX.
@@ -144,17 +144,22 @@ begin
   FRESTClient := TRESTClient.Create(nil);
   FRESTRequest := TRESTRequest.Create(nil);
   FAdapter := TRESTResponseDataSetAdapter.Create(nil);
-  FAdapter.TypesMode := TJSONTypesMode.JSONOnly;
+  FAdapter.TypesMode := TJSONTypesMode.StringOnly;
+  FAdapter.StringFieldSize := 32*1024 - 1;
+    
   FRESTRequest.Client := FRESTClient;
 
   FRESTClient.ConnectTimeout := 10000;
   FRESTClient.ReadTimeout := 30000;
+  FRESTClient.SynchronizedEvents := False;
+  FRESTRequest.SynchronizedEvents := False;
 end;
 
 function TDAOClientREST.Clear: TDAOClientREST;
 begin
   Result := Self;
   FRESTRequest.Params.Clear;
+  FAdapter.ClearDataSet;
   FMemTable := nil;
   FAdapter.Active := false;
 end;
