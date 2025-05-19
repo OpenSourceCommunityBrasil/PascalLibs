@@ -1,6 +1,6 @@
 ﻿// Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-// version 1.7
+// version 1.8
 unit FMXFormat;
 
 interface
