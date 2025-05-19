@@ -1,6 +1,6 @@
 ﻿// Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-// version 1.3
+// version 1.4
 unit DAO.REST;
 
 // comment this line to make this unit handle VCL controls instead of FMX.
@@ -14,7 +14,7 @@ uses
   {$ELSE}
   Vcl.Grids,
   {$ENDIF}
-  Classes, SysUtils, System.JSON,
+  Classes, SysUtils, System.JSON, Math, System.RegularExpressions,
   REST.Client, REST.Types, REST.Response.Adapter, REST.Authenticator.Basic,
   Data.DB, Data.DBJson;
 
@@ -24,10 +24,12 @@ type
     FAdapter: TRESTResponseDataSetAdapter;
     FBaseURL: string;
     FBasicAuth: THTTPBasicAuthenticator;
+    FContentType: string;
     FMemTable: TDataSet;
     FRESTClient: TRESTClient;
     FRESTRequest: TRESTRequest;
     FResponse: TRESTResponse;
+    FResponseStream: TStream;
     FStatusCode: integer;
     FUserAgent: string;
     FGrid: TStringGrid;
@@ -35,10 +37,15 @@ type
     FResponseJSON: TJSONValue;
     FResponseBytes: TBytes;
     FResponseLength: Cardinal;
+    FRootElement: string;
+    isJSON: boolean;
     procedure SetBaseURL(const Value: string);
     procedure SetUserAgent(const Value: string);
     procedure doRequest;
     procedure doFillGrid;
+    procedure GetResponseStream;
+    procedure setRootElement(const Value: string);
+    function FormatDateTimeFields(const Value: TJSONValue): TJSONValue;
   public
     constructor Create; overload;
     constructor Create(ABaseURL: string); overload;
@@ -51,7 +58,8 @@ type
     function AddBody(AName: string; AValue: integer; AEncode: boolean = false)
       : TDAOClientREST; overload;
     function AddBody(AValue: TStream; AContentType: string): TDAOClientREST; overload;
-    function AddBody(AName: string; AValue: TStream; AContentType: string): TDAOClientREST; overload;
+    function AddBody(AName: string; AValue: TStream; AContentType: string)
+      : TDAOClientREST; overload;
     function AddBody(AValue: TJSONObject): TDAOClientREST; overload;
     function AddBody(ABodyContent: string; AContentType: TRESTContentType)
       : TDAOClientREST; overload;
@@ -61,6 +69,7 @@ type
       : TDAOClientREST; overload;
     procedure BasicAuth(AUserName: string; APassword: string);
     function Clear: TDAOClientREST;
+    function ContentType(AValue: string): TDAOClientREST;
     function Grid(AGrid: TStringGrid): TDAOClientREST; overload;
     function Grid: TStringGrid; overload;
     function MemTable(AMemTable: TDataSet): TDAOClientREST;
@@ -76,9 +85,11 @@ type
     property BaseURL: string read FBaseURL write SetBaseURL;
     property Response: TRESTResponse read FResponse;
     property ResponseBytes: TBytes read FResponseBytes;
-    property ResponseLength: Cardinal read FResponseLength;
-    property ResponseText: string read FResponseText;
     property ResponseJSON: TJSONValue read FResponseJSON;
+    property ResponseLength: Cardinal read FResponseLength;
+    property ResponseStream: TStream read FResponseStream;
+    property ResponseText: string read FResponseText;
+    property RootElement: string read FRootElement write setRootElement;
     property StatusCode: integer read FStatusCode;
     property UserAgent: string read FUserAgent write SetUserAgent;
   end;
@@ -86,6 +97,77 @@ type
 implementation
 
 { TDAOClientREST }
+
+function TDAOClientREST.FormatDateTimeFields(const Value: TJSONValue): TJSONValue;
+var
+  Pair: TJSONPair;
+  Item, NewValue, NewItem: TJSONValue;
+  S: string;
+  DT: TDateTime;
+  Parsed: boolean;
+  CustomFormatSettings: TFormatSettings;
+  DateTimePattern, YearFirstPattern: string;
+begin
+  // dd/mm/yyyy hh:nn:ss or mm/dd/yyyy hh:nn:ss
+  DateTimePattern := '^\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}$';
+  // yyyy/mm/dd hh:nn:ss
+  YearFirstPattern := '^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}$';
+
+  if Value is TJSONObject then
+  begin
+    Result := TJSONObject.Create;
+    for Pair in TJSONObject(Value) do
+    begin
+      NewValue := FormatDateTimeFields(Pair.JsonValue);
+      TJSONObject(Result).AddPair(Pair.JsonString.Value, NewValue);
+    end;
+  end
+  else if Value is TJSONArray then
+  begin
+    Result := TJSONArray.Create;
+    for Item in TJSONArray(Value) do
+    begin
+      NewItem := FormatDateTimeFields(Item);
+      TJSONArray(Result).AddElement(NewItem);
+    end;
+  end
+  else if Value is TJSONString then
+  begin
+    S := TJSONString(Value).Value;
+
+    // Define padrões de timestamp
+    CustomFormatSettings := TFormatSettings.Create;
+    CustomFormatSettings.DateSeparator := '/';
+    CustomFormatSettings.TimeSeparator := ':';
+    CustomFormatSettings.LongTimeFormat := 'hh:nn:ss';
+
+    if TRegEx.IsMatch(S, YearFirstPattern) then
+    begin
+      CustomFormatSettings.ShortDateFormat := 'yyyy/mm/dd';
+      if TryStrToDateTime(S, DT, CustomFormatSettings) then
+        Result := TJSONString.Create(FormatDateTime('yyyy/mm/dd hh:nn:ss', DT));
+    end
+    else if TRegEx.IsMatch(S, DateTimePattern) then
+    begin
+      Parsed := false;
+      CustomFormatSettings.ShortDateFormat := 'dd/mm/yyyy';
+      if TryStrToDateTime(S, DT, CustomFormatSettings) then
+        Parsed := True
+      else
+      begin
+        CustomFormatSettings.ShortDateFormat := 'mm/dd/yyyy';
+        if TryStrToDateTime(S, DT, CustomFormatSettings) then
+          Parsed := True;
+      end;
+      if Parsed then
+        Result := TJSONString.Create(FormatDateTime('yyyy/mm/dd hh:nn:ss', DT));
+    end
+    else
+      Result := TJSONString.Create(S);
+  end
+  else
+    Result := Value.Clone as TJSONValue;
+end;
 
 function TDAOClientREST.AddBody(AValue: TJSONObject): TDAOClientREST;
 begin
@@ -143,16 +225,17 @@ constructor TDAOClientREST.Create;
 begin
   FRESTClient := TRESTClient.Create(nil);
   FRESTRequest := TRESTRequest.Create(nil);
+  FRESTClient.RaiseExceptionOn500 := false;
   FAdapter := TRESTResponseDataSetAdapter.Create(nil);
   FAdapter.TypesMode := TJSONTypesMode.StringOnly;
-  FAdapter.StringFieldSize := 32*1024 - 1;
-    
+  FAdapter.StringFieldSize := 32 * 1024 - 1;
+
   FRESTRequest.Client := FRESTClient;
 
   FRESTClient.ConnectTimeout := 10000;
   FRESTClient.ReadTimeout := 30000;
-  FRESTClient.SynchronizedEvents := False;
-  FRESTRequest.SynchronizedEvents := False;
+  FRESTClient.SynchronizedEvents := false;
+  FRESTRequest.SynchronizedEvents := false;
 end;
 
 function TDAOClientREST.Clear: TDAOClientREST;
@@ -162,6 +245,13 @@ begin
   FAdapter.ClearDataSet;
   FMemTable := nil;
   FAdapter.Active := false;
+end;
+
+function TDAOClientREST.ContentType(AValue: string): TDAOClientREST;
+begin
+  Result := Self;
+  FContentType := AValue;
+  FRESTClient.ContentType := AValue;
 end;
 
 constructor TDAOClientREST.Create(ABaseURL, AUserAgent: string);
@@ -180,11 +270,15 @@ end;
 destructor TDAOClientREST.Destroy;
 begin
   FreeAndNil(FAdapter);
-  if Assigned(FResponse) then
+  if assigned(FResponse) then
     FreeAndNil(FResponse);
+  if assigned(FResponseStream) then
+    FreeAndNil(FResponseStream);
   FreeAndNil(FRESTRequest);
   FreeAndNil(FBasicAuth);
   FreeAndNil(FRESTClient);
+  if assigned(FResponseJSON) then
+    FreeAndNil(FResponseJSON);
   inherited;
 end;
 
@@ -193,14 +287,16 @@ var
   I, J: integer;
   ResponseArray: TJSONArray;
   ResponseItem: TJSONObject;
+  {$IFDEF HAS_FMX}
   Column: TStringColumn;
+  {$ENDIF}
 begin
   {$IFDEF HAS_FMX}
   FGrid.BeginUpdate;
   try
     try
       FGrid.ClearColumns;
-      ResponseArray := TJSONArray(FResponse.JSONValue);
+      ResponseArray := TJSONArray(FResponseJSON);
       FGrid.RowCount := ResponseArray.Count;
       For I := 0 to pred(ResponseArray.Count) do
       begin
@@ -213,7 +309,9 @@ begin
             Column.Header := ResponseItem.Pairs[J].JsonString.Value;
             FGrid.Model.InsertColumn(J, Column);
           end;
-          FGrid.Cells[J, I] := ResponseItem.Pairs[J].JSONValue.Value;
+          FGrid.Cells[J, I] := ResponseItem.Pairs[J].JsonValue.Value;
+          FGrid.Columns[J].Width := Max(FGrid.Columns[J].Width,
+            ResponseItem.Pairs[J].JsonValue.Value.Trim.Length * 6.4);
         end;
       end;
     except
@@ -226,6 +324,8 @@ begin
 end;
 
 procedure TDAOClientREST.doRequest;
+var
+  OriginalJSON: TJSONValue;
 begin
   try
     try
@@ -234,23 +334,41 @@ begin
       FResponse := TRESTResponse(FRESTRequest.Response);
       FStatusCode := FRESTRequest.Response.StatusCode;
       FResponseText := FResponse.Content;
-      FResponseJSON := FResponse.JSONValue;
+      FContentType := FResponse.ContentType;
+      isJSON := FContentType = CONTENTTYPE_APPLICATION_JSON;
+      if isJSON then
+      begin
+        OriginalJSON := TJSONObject.ParseJSONValue(FResponseText);
+        if assigned(OriginalJSON) then
+          try
+            if assigned(FResponseJSON) then
+              FreeAndNil(FResponseJSON);
+            FResponseJSON := FormatDateTimeFields(OriginalJSON);
+          finally
+            OriginalJSON.Free;
+          end
+        else
+          FResponseJSON := nil;
+      end
+      else if assigned(FResponseJSON) then
+        FreeAndNil(FResponseJSON);
       FResponseBytes := FResponse.RawBytes;
       FResponseLength := FResponse.ContentLength;
-      if assigned(FMemTable) then
+      GetResponseStream;
+      if assigned(FMemTable) and assigned(FResponseJSON) then
       begin
+        FMemTable.Close;
         FAdapter.Dataset := FMemTable;
-        FAdapter.Response := FResponse;
-        FAdapter.Active := true;
+        FAdapter.UpdateDataSet(FResponseJSON);
       end;
-      if assigned(FGrid) then
+      if assigned(FGrid) and isJSON then
         doFillGrid;
     end;
   except
-    on e: exception do
+    on E: Exception do
     begin
       FStatusCode := 500;
-      FResponseText := e.Message;
+      FResponseText := E.Message;
     end;
   end;
 end;
@@ -259,6 +377,20 @@ procedure TDAOClientREST.Get;
 begin
   FRESTRequest.Method := rmGET;
   doRequest;
+end;
+
+procedure TDAOClientREST.GetResponseStream;
+begin
+  if FResponse <> nil then
+  begin
+    FResponseStream := TStringStream.Create('', TEncoding.UTF8);
+    try
+      TStringStream(FResponseStream).Write(Response.RawBytes, Response.ContentLength);
+      FResponseStream.Position := 0;
+    except
+      FreeAndNil(FResponseStream);
+    end;
+  end;
 end;
 
 function TDAOClientREST.Grid: TStringGrid;
@@ -325,7 +457,19 @@ begin
 
   for I := 0 to pred(AObjects.Count) do
     FRESTRequest.Params.AddItem(AObjects.Pairs[I].JsonString.Value,
-      AObjects.Pairs[I].JSONValue.Value, pkHTTPHEADER);
+      AObjects.Pairs[I].JsonValue.Value, pkHTTPHEADER);
+end;
+
+procedure TDAOClientREST.setRootElement(const Value: string);
+begin
+  if assigned(FResponse) then
+  begin
+    FRootElement := Value;
+    FResponse.RootElement := Value;
+    if isJSON then
+      FResponseJSON := FResponse.JsonValue;
+    FResponseText := FResponse.Content;
+  end;
 end;
 
 function TDAOClientREST.SetHeader(AList: TStringList): TDAOClientREST;
