@@ -1,6 +1,6 @@
 ﻿// Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-// version 1.4
+// version 1.5
 unit DAO.REST;
 
 // comment this line to make this unit handle VCL controls instead of FMX.
@@ -39,6 +39,8 @@ type
     FResponseLength: Cardinal;
     FRootElement: string;
     isJSON: boolean;
+    FResponseTimeout: integer;
+    FConnectTimeout: integer;
     procedure SetBaseURL(const Value: string);
     procedure SetUserAgent(const Value: string);
     procedure doRequest;
@@ -46,6 +48,8 @@ type
     procedure GetResponseStream;
     procedure setRootElement(const Value: string);
     function FormatDateTimeFields(const Value: TJSONValue): TJSONValue;
+    procedure SetConnectTimeout(const Value: integer);
+    procedure SetResponseTimeout(const Value: integer);
   public
     constructor Create; overload;
     constructor Create(ABaseURL: string); overload;
@@ -83,8 +87,10 @@ type
     procedure Patch;
 
     property BaseURL: string read FBaseURL write SetBaseURL;
+    property ConnectTimeout: integer read FConnectTimeout write SetConnectTimeout;
     property Response: TRESTResponse read FResponse;
     property ResponseBytes: TBytes read FResponseBytes;
+    property ResponseTimeout: integer read FResponseTimeout write SetResponseTimeout;
     property ResponseJSON: TJSONValue read FResponseJSON;
     property ResponseLength: Cardinal read FResponseLength;
     property ResponseStream: TStream read FResponseStream;
@@ -192,7 +198,11 @@ end;
 function TDAOClientREST.AddBody(AValue: TStream; AContentType: string): TDAOClientREST;
 begin
   Result := Self;
+  {$IFDEF CompilerVersion > 32}
   FRESTRequest.AddBody(AValue, AContentType);
+  {$ELSE}
+  FRESTRequest.AddBody(AValue, ContentTypeFromString(AContentType));
+  {$ENDIF}
 end;
 
 function TDAOClientREST.AddBody(AName, AValue: string; AEncode: boolean): TDAOClientREST;
@@ -232,10 +242,10 @@ begin
 
   FRESTRequest.Client := FRESTClient;
 
-  FRESTClient.ConnectTimeout := 10000;
-  FRESTClient.ReadTimeout := 30000;
   FRESTClient.SynchronizedEvents := false;
   FRESTRequest.SynchronizedEvents := false;
+  ConnectTimeout := 10000;
+  ResponseTimeout := 30000;
 end;
 
 function TDAOClientREST.Clear: TDAOClientREST;
@@ -360,6 +370,9 @@ begin
         FMemTable.Close;
         FAdapter.Dataset := FMemTable;
         FAdapter.UpdateDataSet(FResponseJSON);
+
+        FMemTable.Filter := '';
+        FMemTable.Filtered := False;
       end;
       if assigned(FGrid) and isJSON then
         doFillGrid;
@@ -446,6 +459,12 @@ begin
   FRESTClient.BaseURL := FBaseURL;
 end;
 
+procedure TDAOClientREST.SetConnectTimeout(const Value: integer);
+begin
+  FConnectTimeout := Value;
+  FRESTClient.ConnectTimeout := Value;
+end;
+
 function TDAOClientREST.SetHeader(AObjects: TJSONObject): TDAOClientREST;
 var
   I: integer;
@@ -458,6 +477,12 @@ begin
   for I := 0 to pred(AObjects.Count) do
     FRESTRequest.Params.AddItem(AObjects.Pairs[I].JsonString.Value,
       AObjects.Pairs[I].JsonValue.Value, pkHTTPHEADER);
+end;
+
+procedure TDAOClientREST.SetResponseTimeout(const Value: integer);
+begin
+  FResponseTimeout := Value;
+  FRESTClient.ReadTimeout := Value;
 end;
 
 procedure TDAOClientREST.setRootElement(const Value: string);
