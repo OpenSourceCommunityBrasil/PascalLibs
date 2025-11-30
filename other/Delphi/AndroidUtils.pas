@@ -1,16 +1,17 @@
-// Maiores InformaÃ§Ãµes
+// Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-// version 1.0
+// version 1.1
 unit AndroidUtils;
 
 interface
 
 uses
-  System.Permissions,
-  Androidapi.JNI.Telephony, Androidapi.Helpers, Androidapi.JNI.OS,
-  Androidapi.JNI.JavaTypes, Androidapi.JNI.GraphicsContentViewText,
-  Androidapi.JNI.Net, Androidapi.JNI.App, Androidapi.JNI.Support,
-  FMX.Helpers.Android;
+  System.Permissions, System.IOUtils,
+  FMX.Helpers.Android,
+  Androidapi.Helpers, Androidapi.JNIBridge, Androidapi.JNI.Telephony, Androidapi.JNI.OS,
+  Androidapi.JNI.JavaTypes, Androidapi.JNI.GraphicsContentViewText, Androidapi.JNI.Net,
+  Androidapi.JNI.App, Androidapi.JNI.Support,
+  Androidapi.JNI.Provider;
 
 type
   TPermissions = (pCamera, pStorage, pPhoneState, pBiometry, pLocation, pCall);
@@ -24,6 +25,8 @@ type
   TAndroidIntent = class
   public
     class procedure Open(AFilename, AMIMEType: string);
+    class procedure OpenPDF(AFilename: string);
+    class procedure ShareFile(AFileName, AFilePath, AMIMEType: string);
   end;
 
   TAndroidVersion = class
@@ -155,7 +158,61 @@ begin
   LIntent := TJIntent.JavaClass.init(TJIntent.JavaClass.ACTION_VIEW);
   LIntent.setDataAndType(TAndroidHelper.JFileToJURI(LFile), StringToJString(AMIMEType));
   LIntent.setFlags(TJIntent.JavaClass.FLAG_GRANT_READ_URI_PERMISSION);
+  // SharedActivity.startActivity(LIntent);
   TAndroidHelper.Activity.startActivity(LIntent);
+end;
+
+class procedure TAndroidIntent.OpenPDF(AFilename: string);
+var
+  Afile: JFile;
+  AUri: Jnet_Uri;
+  intent: JIntent;
+  package: JStringBuilder;
+begin
+  // pega o nome do .apk com o .fileprovider
+  package := TJStringBuilder.Create;
+  package.append(TAndroidHelper.Context.getPackageName)
+    .append(StringToJString('.fileprovider'));
+
+  Afile := TJFile.JavaClass.init(StringToJString(AFilename));
+  AUri := TJcontent_FileProvider.JavaClass.getUriForFile(TAndroidHelper.Context,
+    package.toString, Afile);
+  intent := TJIntent.Create;
+  intent.setAction(TJIntent.JavaClass.ACTION_VIEW);
+  intent.setDataAndType(AUri, StringToJString('application/pdf'));
+  intent.addFlags(TJIntent.JavaClass.FLAG_GRANT_READ_URI_PERMISSION);
+  try
+    TAndroidHelper.Activity.startActivity(intent);
+  except
+    Raise;
+  end;
+end;
+
+class procedure TAndroidIntent.ShareFile(AFilename, AFilePath, AMIMEType: string);
+var
+  Afile: JFile;
+  AUri: Jnet_Uri;
+  intent: JIntent;
+  package: JStringBuilder;
+begin
+  // pega o nome do .apk com o .fileprovider
+  package := TJStringBuilder.Create;
+  package.append(TAndroidHelper.Context.getPackageName)
+    .append(StringToJString('.fileprovider'));
+
+  Afile := TJFile.JavaClass.init(StringToJString(AFilePath));
+  AUri := TJcontent_FileProvider.JavaClass.getUriForFile(TAndroidHelper.Context,
+    package.toString, Afile);
+
+  intent := TJIntent.Create;
+  intent.setAction(TJIntent.JavaClass.ACTION_SEND);
+  intent.setDataAndType(AUri, StringToJString(AMIMEType));
+  intent.setType(StringToJString('application/pdf'));
+  intent.putExtra(TJIntent.JavaClass.EXTRA_STREAM,
+    TJParcelable.Wrap((AUri as ILocalObject).GetObjectID));
+  intent.addFlags(TJIntent.JavaClass.FLAG_GRANT_READ_URI_PERMISSION);
+  TAndroidHelper.Activity.startActivity(TJIntent.JavaClass.createChooser(intent,
+    StrToJCharSequence('Share ' + AFilename + ':')));
 end;
 
 { TAndroidVersion }
@@ -168,13 +225,13 @@ end;
 class function TAndroidVersion.GetOSInfo: string;
 begin
   Result := '';
-  Result := Result + 'Major: ' + TOSVersion.Major.ToString + sLineBreak;
-  Result := Result + 'Minor: ' + TOSVersion.Minor.ToString + sLineBreak;
-  Result := Result + 'Build: ' + TOSVersion.Build.ToString + sLineBreak;
+  Result := Result + 'Major: ' + TOSVersion.Major.toString + sLineBreak;
+  Result := Result + 'Minor: ' + TOSVersion.Minor.toString + sLineBreak;
+  Result := Result + 'Build: ' + TOSVersion.Build.toString + sLineBreak;
   Result := Result + 'Name: ' + TOSVersion.Name + sLineBreak;
-  Result := Result + 'ServicePackMajor: ' + TOSVersion.ServicePackMajor.ToString +
+  Result := Result + 'ServicePackMajor: ' + TOSVersion.ServicePackMajor.toString +
     sLineBreak;
-  Result := Result + 'ServicePackMinor: ' + TOSVersion.ServicePackMinor.ToString +
+  Result := Result + 'ServicePackMinor: ' + TOSVersion.ServicePackMinor.toString +
     sLineBreak;
 end;
 

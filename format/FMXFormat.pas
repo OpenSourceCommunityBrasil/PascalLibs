@@ -1,6 +1,6 @@
 ﻿// Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-// version 1.8
+// version 1.9
 unit FMXFormat;
 
 interface
@@ -30,6 +30,8 @@ const
     'O', 'O', 'O', 'U', 'U', 'U', 'U', 'C', 'N', 'Y', 'Y');
   regexDMA_MDA = '^\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}$';
   regexAMD = '^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}$';
+  regexDMA_MDAData = '^\d{2}/\d{2}/\d{4}$';
+  regexAMDData = '^\d{4}/\d{2}/\d{2}$';
 
 type
   TFormato = (None, &Date, Bits, CEP, CEST, CFOP, CNH, CNPJ, CNPJorCPF, CPF, CREA, CRM,
@@ -52,7 +54,7 @@ type
     function FormataData(aStr: string): string;
     function FormataDinheiro(aStr: string; aPrecisao: integer = 2): string;
     function FormataHora(aStr: string): string;
-    function FormataDataHora(aDate: TDateTime): string;
+    function FormataDataHora(aStr, aFormato: string): string;
     function FormataHoraCurta(aStr: string): string;
     function FormataIE(aCod: string; UF: TUF): string;
     function FormataOAB(aStr: integer; UF: TUF): string;
@@ -198,6 +200,8 @@ begin
       Result := tfVeiculoMercosul;
     VeiculoTradicional:
       Result := tfVeiculoTradicional;
+    else
+      Result := tfNenhum;
   end;
 end;
 
@@ -247,9 +251,12 @@ begin
     fs.DecimalSeparator := '.';
     fs.ThousandSeparator := ',';
     if not TryStrToFloat(aStr, Valor, fs) then
-      Result := 0;
-  end;
-  Result := Valor;
+      Result := 0
+    else
+      Result := Valor;
+  end
+  else
+    Result := Valor;
 end;
 
 /// <returns>
@@ -348,12 +355,65 @@ begin
 end;
 
 /// <returns>
-/// Formata o texto para datas no formato dia(2)/mês(2)/ano(4)
-/// e hora no formato horas(2):minutos(2):segundos(2)
+/// Formata o texto (aStr) para o formato especificado em aFormato
+/// podendo ser data, hora ou ambos
 /// </returns>
-function TFormatHelper.FormataDataHora(aDate: TDateTime): string;
+function TFormatHelper.FormataDataHora(aStr, aFormato: String): string;
+var
+  tempdatetime: TDateTime;
+  fs: TFormatSettings;
 begin
-  Result := FormatDateTime('dd/mm/yyyy hh:nn:ss', aDate);
+  fs := TFormatSettings.Create;
+  fs.DateSeparator := '/';
+  fs.TimeSeparator := ':';
+  fs.LongTimeFormat := 'hh:nn:ss';
+
+  if SomenteNumero(aStr).Length > 8 then // formato datetime
+  begin
+    if TRegEx.IsMatch(aStr, regexDMA_MDA) then
+    begin
+      fs.ShortDateFormat := 'dd/mm/yyyy';
+      if TryStrToDateTime(aStr, tempdatetime, fs) then
+        Result := FormatDateTime(aFormato, tempdatetime)
+      else
+      begin
+        fs.ShortDateFormat := 'mm/dd/yyyy';
+        if TryStrToDateTime(aStr, tempdatetime, fs) then
+          Result := FormatDateTime(aFormato, tempdatetime);
+      end;
+    end
+    else if TRegEx.IsMatch(aStr, regexAMD) then
+    begin
+      fs.ShortDateFormat := 'yyyy/mm/dd';
+      if TryStrToDateTime(aStr, tempdatetime, fs) then
+        Result := FormatDateTime(aFormato, tempdatetime);
+    end
+    else if TryISO8601ToDate(aStr, tempdatetime) then
+      Result := FormatDateTime(aFormato, tempdatetime);
+  end
+  else // formato date
+  begin
+    if TRegEx.IsMatch(aStr, regexDMA_MDAData) then
+    begin
+      fs.ShortDateFormat := 'dd/mm/yyyy';
+      if TryStrToDateTime(aStr, tempdatetime, fs) then
+        Result := FormatDateTime(aFormato, tempdatetime)
+      else
+      begin
+        fs.ShortDateFormat := 'mm/dd/yyyy';
+        if TryStrToDateTime(aStr, tempdatetime, fs) then
+          Result := FormatDateTime(aFormato, tempdatetime);
+      end;
+    end
+    else if TRegEx.IsMatch(aStr, regexAMDData) then
+    begin
+      fs.ShortDateFormat := 'yyyy/mm/dd';
+      if TryStrToDateTime(aStr, tempdatetime, fs) then
+        Result := FormatDateTime(aFormato, tempdatetime);
+    end
+    else if TryISO8601ToDate(aStr, tempdatetime) then
+      Result := FormatDateTime(aFormato, tempdatetime);
+  end;
 end;
 
 /// <returns>
@@ -525,9 +585,6 @@ end;
 /// é utilizado em alguns tipos de formatação para definir precisão de dígitos</param>
 function TFormatHelper.Formatar(Formato: TTipoFormato; Texto: string;
   ExtraArg: variant): string;
-var
-  tempdatetime: TDateTime;
-  fs: TFormatSettings;
 begin
   case Formato of
     tfNenhum:
@@ -571,35 +628,10 @@ begin
       Texto := FormataCRM(StrToIntDef(Ultimos(SomenteNumero(Texto), 6), 0), ExtraArg);
 
     tfData:
-      Texto := FormataData(SomenteNumero(Texto));
+      Texto := FormataDataHora(Texto, 'dd/mm/yyyy');
 
     tfDataHora:
-      begin
-        fs := TFormatSettings.Create;
-        fs.DateSeparator := '/';
-        fs.TimeSeparator := ':';
-        fs.LongTimeFormat := 'hh:nn:ss';
-        if TRegEx.IsMatch(Texto, regexDMA_MDA) then
-        begin
-          fs.ShortDateFormat := 'dd/mm/yyyy';
-          if TryStrToDateTime(Texto, tempdatetime, fs) then
-            Texto := FormataDataHora(tempdatetime)
-          else
-          begin
-            fs.ShortDateFormat := 'mm/dd/yyyy';
-            if TryStrToDateTime(Texto, tempdatetime, fs) then
-              Texto := FormataDataHora(tempdatetime);
-          end;
-        end
-        else if TRegEx.IsMatch(Texto, regexAMD) then
-        begin
-          fs.ShortDateFormat := 'yyyy/mm/dd';
-          if TryStrToDateTime(Texto, tempdatetime, fs) then
-            Texto := FormataDataHora(tempdatetime)
-        end
-        else if TryISO8601ToDate(Texto, tempdatetime) then
-          Texto := FormataDataHora(tempdatetime);
-      end;
+      Texto := FormataDataHora(Texto, 'dd/mm/yyyy hh:nn:ss');
 
     tfDinheiro:
       if ExtraArg <> -1 then

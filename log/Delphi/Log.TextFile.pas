@@ -1,25 +1,33 @@
+// Maiores Informações
+// https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
+// version 1.0
 unit Log.TextFile;
 
 interface
 
 uses
-  System.SysUtils, System.SyncObjs;
+  System.SysUtils, System.SyncObjs, System.DateUtils;
 
 type
-  TLogLevel = (llCritical, llDebug, llError, llInfo, llWarning);
+  TLogLevel = (llCritical, llError, llWarning, llInfo, llVerbose, llDebug);
 
   TLog = class
   private
+    FInternalDate: TDateTime;
     FFileName: string;
+    FDefaultFileName: string;
     FCriticalSession: TCriticalSection;
+    FDefaultLogLevel: TLogLevel;
     procedure SetFileName(const Value: string);
     function LevelFromIdentifier(AIdentifier: TLogLevel): string;
   public
     constructor Create(AFileName: string = 'log.txt');
     destructor Destroy; override;
-    procedure Log(ALevel: TLogLevel; AMessage: string);
+    procedure Log(ALevel: TLogLevel; AMessage: string); overload;
+    procedure Log(ALevel: TLogLevel; AMessageFmt: string; AArgs: array of const); overload;
 
     property FileName: string read FFileName write SetFileName;
+    property DefaultLoggingLevel: TLogLevel read FDefaultLogLevel write FDefaultLogLevel;
   end;
 
 implementation
@@ -28,8 +36,10 @@ implementation
 
 constructor TLog.Create(AFileName: string);
 begin
+  FInternalDate := now;
   SetFileName(AFileName);
   FCriticalSession := TCriticalSection.Create;
+  DefaultLoggingLevel := llInfo;
 end;
 
 destructor TLog.Destroy;
@@ -46,34 +56,59 @@ begin
     llError: Result := '[ERROR]';
     llInfo: Result := '[INFO]';
     llWarning: Result := '[WARNING]';
+    llVerbose: Result := '[VERBOSE]';
   end;
+end;
+
+procedure TLog.Log(ALevel: TLogLevel; AMessageFmt: string;
+  AArgs: array of const);
+begin
+  Log(ALevel, Format(AMessageFmt, AArgs));
 end;
 
 procedure TLog.Log(ALevel: TLogLevel; AMessage: string);
 var
   LogFile: Text;
 begin
-  FCriticalSession.Enter;
-  try
-    AssignFile(LogFile, FFileName);
+  if ALevel <= FDefaultLogLevel then
+  begin
+    FCriticalSession.Enter;
     try
-      if FileExists(FFileName) then
-        Append(LogFile)
-      else
-        Rewrite(LogFile);
+      if DaysBetween(now, FInternalDate) > 0 then
+      begin
+        FInternalDate := now;
+        SetFileName(FDefaultFileName);
+      end;
 
-      Writeln(LogFile, Format('%s %s %s', [FormatDateTime('dd/mm/yyyy hh:nn:ss', Now), LevelFromIdentifier(ALevel), AMessage]));
-    finally
-      CloseFile(LogFile);
+      AssignFile(LogFile, FFileName);
+      try
+        if FileExists(FFileName) then
+          Append(LogFile)
+        else
+        begin
+          ForceDirectories(ExtractFileDir(FFileName));
+          Rewrite(LogFile);
+        end;
+
+        Writeln(LogFile, Format('%s %s %s', [FormatDateTime('dd/mm/yyyy hh:nn:ss', Now), LevelFromIdentifier(ALevel), AMessage]));
+      finally
+        CloseFile(LogFile);
+      end;
+    except
     end;
-  except
+    FCriticalSession.Leave;
   end;
-  FCriticalSession.Leave;
 end;
 
 procedure TLog.SetFileName(const Value: string);
+var
+  temp: string;
 begin
-  FFileName := Value;
+  FDefaultFileName := Value;
+  temp := ExtractFileName(Value);
+  FFileName := ExtractFileDir(Value) + '\';
+  FFileName := FFileName + Copy(temp, 1, pos('.', temp)-1)
+    + FormatDateTime('yyyymmdd', FInternalDate) + ExtractFileExt(Value);
 end;
 
 end.

@@ -1,33 +1,31 @@
 // Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-// version 1.0
+// version 1.1
 unit Config.SQLite.FireDAC;
 
 interface
 
-{$IF Declared(FireMonkeyVersion) or Defined(FRAMEWORK_FMX)
-or Declared(FMX.Types.TFmxObject) or Defined(LINUX64)}
+// Change here to use VCL
 {$DEFINE HAS_FMX}
-{$ENDIF}
 
 uses
   System.JSON, System.SysUtils, System.Generics.Collections, System.Classes,
   Data.DB,
-{$IF CompilerVersion > 33.0}
+  {$IF CompilerVersion > 33.0}
   FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.Stan.ExprFuncs,
   FireDAC.Phys.SQLiteDef, FireDAC.Stan.Intf, FireDAC.Phys, FireDAC.Phys.SQLite,
-  FireDAC.Stan.Param, FireDAC.Stan.Def, FireDAC.DApt, FireDAC.stan.Async,
-{$IFEND}
-{$IFDEF Android}
+  FireDAC.Stan.Param, FireDAC.Stan.Def, FireDAC.DApt, FireDAC.Stan.Async,
+  {$ENDIF}
+  {$IFDEF Android}
   System.IOUtils,
-{$ENDIF}
+  {$ENDIF}
   FireDAC.Comp.Client
-{$IFDEF HAS_FMX}
+  {$IFDEF HAS_FMX}
     , FMX.Forms, FMX.Edit, FMX.ComboEdit, FMX.StdCtrls, FMX.ExtCtrls,
   FMX.Controls, FMX.ListBox, FMX.DateTimeCtrls
-{$ELSE}
+  {$ELSE}
     , VCL.Forms, VCL.StdCtrls, VCL.ExtCtrls, VCL.ValEdit
-{$IFEND}
+  {$IFEND}
     ;
 
 type
@@ -42,14 +40,20 @@ type
   public
     constructor Create(aFileName: string = 'config.db');
     destructor Destroy; override;
-    function getValue(pKey: string): string;
+    procedure ClearDatabase;
+    function getValue(pKey: string): string; overload;
+      deprecated 'use getValue(string, string) instead';
+    function getValue(pKey: string; ADefault: string): string; overload;
+    function getValue(pKey: string; ADefault: integer): integer; overload;
+    function getValue(pKey: string; ADefault: boolean): boolean; overload;
+    function getValue(pKey: string; ADefault: double): double; overload;
+    function isEmpty: boolean;
+    function LoadConfig: TJSONObject;
+    procedure LoadForm(aForm: TForm);
+    procedure SaveForm(aForm: TForm);
     procedure UpdateConfig(aJSON: TJSONObject); overload;
     procedure UpdateConfig(aKey, aValue: string); overload;
-    function LoadConfig: TJSONObject;
-    procedure SaveForm(aForm: TForm);
-    procedure LoadForm(aForm: TForm);
     function ValidaBanco: boolean;
-    procedure ClearDatabase;
   end;
 
 var
@@ -67,35 +71,36 @@ end;
 
 constructor TSQLiteConfig.Create(aFileName: string = 'config.db');
 begin
-{$IFDEF MSWINDOWS} // android já possui a dll instalada
+  {$IFDEF MSWINDOWS} // android já possui a dll instalada
   FDriver := TFDPhysSQLiteDriverLink.Create(nil);
   FDriver.DriverID := 'SQLite';
   FDriver.VendorLib := GetDefaultDir('sqlite3.dll');
-{$ENDIF}
+  {$ENDIF}
   FConn := TFDConnection.Create(nil);
   FConn.Params.Clear;
   FConn.Params.Add('DriverID=SQLite');
-{$IFDEF Android}
+  {$IFDEF Android}
   FConn.Params.Add('Database=' + TPath.Combine(TPath.GetDocumentsPath, aFileName));
-{$ENDIF}
-{$IFDEF MSWINDOWS}
+  {$ENDIF}
+  {$IFDEF MSWINDOWS}
   FConn.Params.Add('Database=' + ExtractFilePath(ParamStr(0)) + aFileName);
-{$ENDIF}
+  {$ENDIF}
   FConn.Params.Add('LockingMode=normal');
   FDataSet := TFDQuery.Create(nil);
   FDataSet.Connection := FConn;
   FDataSet.ResourceOptions.SilentMode := true;
   if not Validate then
-    raise Exception.Create('sqlite3.dll precisa estar na raiz do projeto ou na pasta /lib');
+    raise Exception.Create
+      ('sqlite3.dll precisa estar na raiz do projeto ou na pasta /lib');
 end;
 
 destructor TSQLiteConfig.Destroy;
 begin
   FDataSet.Free;
   FConn.Free;
-{$IFDEF MSWINDOWS}
+  {$IFDEF MSWINDOWS}
   FDriver.Free;
-{$ENDIF}
+  {$ENDIF}
   inherited;
 end;
 
@@ -110,43 +115,65 @@ begin
     Result := DefaultDir + aFileName;
 end;
 
-function TSQLiteConfig.getValue(pKey: string): string;
+function TSQLiteConfig.getValue(pKey: string; ADefault: integer): integer;
+begin
+  Result := StrToIntDef(getValue(pKey), ADefault);
+end;
+
+function TSQLiteConfig.getValue(pKey: string; ADefault: boolean): boolean;
+begin
+  Result := StrToBoolDef(getValue(pKey), ADefault);
+end;
+
+function TSQLiteConfig.getValue(pKey: string; ADefault: double): double;
+begin
+  Result := StrToFloatDef(getValue(pKey), ADefault);
+end;
+
+function TSQLiteConfig.getValue(pKey, ADefault: string): string;
 var
-  SQL: TStringList;
-  Idx: Integer;
+  Idx: integer;
   JSON: TJSONObject;
 begin
-  Result := '';
-  Idx := 0;
-  if pos('.', pKey) > 0 then
-    Idx := pos('.', pKey);
-  SQL := TStringList.Create;
+  Result := ADefault;
+  Idx := pos('.', pKey);
+
   try
-    try
-      SQL.Add('SELECT CFG_Value');
-      SQL.Add('  FROM Config');
-      SQL.Add(' WHERE CFG_Key = :CFG_Key');
-      if Idx > 0 then
-        SQL.Text := SQL.Text.Replace(':CFG_Key', QuotedStr(Copy(pKey, 0, Idx - 1)))
-      else
-        SQL.Text := SQL.Text.Replace(':CFG_Key', QuotedStr(pKey));
-      FDataSet.Close;
-      FDataSet.SQL.Text := SQL.Text;
-      FDataSet.Open;
-      if (Idx > 0) and (not FDataSet.IsEmpty) then
-      begin
-        JSON := TJSONObject(TJSONObject.ParseJSONValue(FDataSet.Fields.Fields[0].AsString));
-        Result := JSON.getValue(Copy(pKey, Idx + 1, length(pKey))).Value;
-        JSON.Free;
-      end
-      else
-        Result := FDataSet.Fields.Fields[0].AsString.Replace('"', '');
-      FDataSet.Close;
-    except
-      Result := '';
-    end;
-  finally
-    SQL.Free;
+    FDataSet.Close;
+    FDataSet.SQL.Clear;
+    FDataSet.SQL.Add('SELECT CFG_Value');
+    FDataSet.SQL.Add('  FROM Config');
+    FDataSet.SQL.Add(' WHERE CFG_Key = :CFG_Key');
+    if Idx > 0 then
+      FDataSet.ParamByName('CFG_Key').AsString := Copy(pKey, 0, Idx - 1)
+    else
+      FDataSet.ParamByName('CFG_Key').AsString := pKey;
+    FDataSet.Open;
+    if (Idx > 0) and (not FDataSet.isEmpty) then
+    begin
+      JSON := TJSONObject(TJSONObject.ParseJSONValue(FDataSet.Fields.Fields[0].AsString));
+      Result := JSON.getValue(Copy(pKey, Idx + 1, length(pKey))).Value;
+      JSON.Free;
+    end
+    else
+      Result := FDataSet.Fields.Fields[0].AsString.Replace('"', '');
+    FDataSet.Close;
+  except
+    Result := ADefault;
+  end;
+end;
+
+function TSQLiteConfig.getValue(pKey: string): string;
+begin
+  Result := getValue(pKey, '');
+end;
+
+function TSQLiteConfig.isEmpty: boolean;
+begin
+  with LoadConfig do
+  begin
+    Result := ToJSON = '{}';
+    Free;
   end;
 end;
 
@@ -168,7 +195,8 @@ begin
     while not Eof do
     begin
       if isJSON(Fields.Fields[1].AsString) then
-        Result.AddPair(Fields.Fields[0].AsString, TJSONObject.ParseJSONValue(Fields.Fields[1].AsString))
+        Result.AddPair(Fields.Fields[0].AsString,
+          TJSONObject.ParseJSONValue(Fields.Fields[1].AsString))
       else
         Result.AddPair(Fields.Fields[0].AsString, Fields.Fields[1].AsString);
       Next;
@@ -179,10 +207,10 @@ end;
 
 procedure TSQLiteConfig.LoadForm(aForm: TForm);
 var
-{$IFNDEF HAS_FMX}
-  J: Integer;
-{$ENDIF}
-  I: Integer;
+  {$IFNDEF HAS_FMX}
+  J: integer;
+  {$ENDIF}
+  I: integer;
   JSONTela, JSONItem: TJSONObject;
   component: TComponent;
 begin
@@ -194,12 +222,11 @@ begin
       if JSONTela.getValue(component.Name) <> nil then
         if (component.Name <> EmptyStr) and (component.Tag <> -1) then
           if (component is TEdit) then
-            TEdit(component).Text :=
-              JSONTela.getValue(TEdit(component).Name).Value
+            TEdit(component).Text := JSONTela.getValue(TEdit(component).Name).Value
           else if (component is TComboBox) then
-            TComboBox(component).ItemIndex :=
-              JSONTela.getValue(TComboBox(component).Name).Value.ToInteger
-{$IFDEF HAS_FMX}
+            TComboBox(component).ItemIndex := JSONTela.getValue(TComboBox(component).Name)
+              .Value.ToInteger
+            {$IFDEF HAS_FMX}
           else if (component is TComboEdit) then
             TComboEdit(component).ItemIndex :=
               JSONTela.getValue(TComboEdit(component).Name).Value.ToInteger
@@ -207,12 +234,13 @@ begin
             TDateEdit(component).Text :=
               JSONTela.getValue(TDateEdit(component).Name).Value
           else if (component is TSwitch) then
-            TSwitch(component).IsChecked :=
-              JSONTela.getValue(TSwitch(component).Name).Value.ToBoolean
-{$ENDIF}
+            TSwitch(component).IsChecked := JSONTela.getValue(TSwitch(component).Name)
+              .Value.ToBoolean
+            {$ENDIF}
           else if (component is TCheckBox) then
-            TCheckBox(component).{$IFDEF HAS_FMX}IsChecked{$ELSE}Checked{$ENDIF} := JSONTela.getValue(TCheckBox(component).Name).Value.ToBoolean
-{$IFNDEF HAS_FMX}
+            TCheckBox(component).{$IFDEF HAS_FMX}IsChecked{$ELSE}Checked{$ENDIF} :=
+              JSONTela.getValue(TCheckBox(component).Name).Value.ToBoolean
+            {$IFNDEF HAS_FMX}
           else if component is TLabeledEdit then
             TLabeledEdit(component).Text :=
               JSONTela.getValue(TLabeledEdit(component).Name).Value
@@ -227,7 +255,7 @@ begin
                   JSONItem.getValue(TValueListEditor(component).Keys[J]).Value;
             JSONItem.Free;
           end
-{$ENDIF}
+          {$ENDIF}
             ;
     end;
   finally
@@ -237,10 +265,10 @@ end;
 
 procedure TSQLiteConfig.SaveForm(aForm: TForm);
 var
-{$IFNDEF HAS_FMX}
-  J: Integer;
-{$ENDIF}
-  I: Integer;
+  {$IFNDEF HAS_FMX}
+  J: integer;
+  {$ENDIF}
+  I: integer;
   JSONTela, JSONItem: TJSONObject;
   component: TComponent;
 begin
@@ -252,19 +280,28 @@ begin
       if component is TEdit then
         JSONTela.AddPair(TEdit(component).Name, TEdit(component).Text)
       else if component is TComboBox then
-        JSONTela.AddPair(TComboBox(component).Name, TComboBox(component).ItemIndex)
-{$IFDEF HAS_FMX}
+        JSONTela.AddPair(TComboBox(component).Name,
+          TComboBox(component).ItemIndex.ToString)
+        {$IFDEF HAS_FMX}
       else if component is TComboEdit then
-        JSONTela.AddPair(TComboEdit(component).Name, TComboEdit(component).ItemIndex)
+        JSONTela.AddPair(TComboEdit(component).Name,
+          TComboEdit(component).ItemIndex.ToString)
       else if component is TDateEdit then
         JSONTela.AddPair(TDateEdit(component).Name, TDateEdit(component).Text)
       else if component is TSwitch then
-        JSONTela.AddPair(TSwitch(component).Name, TSwitch(component).IsChecked)
-{$ENDIF}
+        JSONTela.AddPair(TSwitch(component).Name,
+          {$IF CompilerVersion < 35}BoolToStr({$ENDIF}
+          TSwitch(component).IsChecked
+          {$IF CompilerVersion < 35}, true){$ENDIF}
+          )
+        {$ENDIF}
       else if component is TCheckBox then
         JSONTela.AddPair(TCheckBox(component).Name,
-          TCheckBox(component).{$IFDEF HAS_FMX}IsChecked{$ELSE}Checked{$ENDIF})
-{$IFNDEF HAS_FMX}
+          {$IF CompilerVersion < 35}BoolToStr({$ENDIF}
+          TCheckBox(component).{$IFDEF HAS_FMX}IsChecked{$ELSE}Checked{$ENDIF}
+          {$IF CompilerVersion < 35}, true){$ENDIF}
+          )
+        {$IFNDEF HAS_FMX}
       else if component is TLabeledEdit then
         JSONTela.AddPair(TLabeledEdit(component).Name, TLabeledEdit(component).Text)
       else if component is TValueListEditor then
@@ -277,7 +314,7 @@ begin
           TJSONObject.ParseJSONValue(JSONItem.ToJSON));
         JSONItem.Free;
       end
-{$ENDIF}
+      {$ENDIF}
         ;
     end;
     UpdateConfig(JSONTela);
@@ -288,7 +325,7 @@ end;
 
 procedure TSQLiteConfig.UpdateConfig(aJSON: TJSONObject);
 var
-  I: Integer;
+  I: integer;
 begin
   // exemplo entrada
   // {"key1":"value1", "key2":"value2", "key3":"value3", "key4":"value4", "key5":"value5"}
@@ -310,7 +347,7 @@ begin
     Close;
     SQL.Clear;
     SQL.Add('INSERT INTO Config (CFG_KEY, CFG_VALUE) ');
-    SQL.Add('VALUES (' + QuotedStr(aKey) + ', ' + QuotedStr(aValue) + ') ');
+    SQL.Add(Format('VALUES (%s, %s)', [QuotedStr(aKey), QuotedStr(aValue)]));
     SQL.Add('ON CONFLICT (CFG_KEY) DO UPDATE ');
     SQL.Add('SET CFG_VALUE = excluded.CFG_VALUE;');
     ExecSQL;
@@ -342,7 +379,7 @@ begin
     begin
       Close;
       Open('PRAGMA table_info(Config)');
-      if IsEmpty then
+      if isEmpty then
       begin
         Close;
         SQL.Clear;
