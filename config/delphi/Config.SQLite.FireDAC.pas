@@ -1,11 +1,11 @@
 // Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-// version 1.1
+// version 1.2
 unit Config.SQLite.FireDAC;
 
 interface
 
-// Change here to use VCL
+// Comment this directive below to make this unit handle VCL controls instead of FMX.
 {$DEFINE HAS_FMX}
 
 uses
@@ -15,17 +15,19 @@ uses
   FireDAC.Phys.SQLiteWrapper.Stat, FireDAC.Stan.ExprFuncs,
   FireDAC.Phys.SQLiteDef, FireDAC.Stan.Intf, FireDAC.Phys, FireDAC.Phys.SQLite,
   FireDAC.Stan.Param, FireDAC.Stan.Def, FireDAC.DApt, FireDAC.Stan.Async,
-  {$ENDIF}
+  {$IFEND}
   {$IFDEF Android}
   System.IOUtils,
   {$ENDIF}
   FireDAC.Comp.Client
-  {$IFDEF HAS_FMX}
-    , FMX.Forms, FMX.Edit, FMX.ComboEdit, FMX.StdCtrls, FMX.ExtCtrls,
-  FMX.Controls, FMX.ListBox, FMX.DateTimeCtrls
-  {$ELSE}
-    , VCL.Forms, VCL.StdCtrls, VCL.ExtCtrls, VCL.ValEdit
-  {$IFEND}
+  {$IFNDEF CONSOLE}
+    {$IFDEF HAS_FMX}
+      , FMX.Forms, FMX.Edit, FMX.ComboEdit, FMX.StdCtrls, FMX.ExtCtrls,
+    FMX.Controls, FMX.ListBox, FMX.DateTimeCtrls
+    {$ELSE}
+      , VCL.Forms, VCL.StdCtrls, VCL.ExtCtrls, VCL.ValEdit
+    {$ENDIF}
+  {$ENDIF}
     ;
 
 type
@@ -49,8 +51,10 @@ type
     function getValue(pKey: string; ADefault: double): double; overload;
     function isEmpty: boolean;
     function LoadConfig: TJSONObject;
+    {$IFNDEF CONSOLE}
     procedure LoadForm(aForm: TForm);
     procedure SaveForm(aForm: TForm);
+    {$ENDIF}
     procedure UpdateConfig(aJSON: TJSONObject); overload;
     procedure UpdateConfig(aKey, aValue: string); overload;
     function ValidaBanco: boolean;
@@ -205,6 +209,7 @@ begin
   end;
 end;
 
+{$IFNDEF CONSOLE}
 procedure TSQLiteConfig.LoadForm(aForm: TForm);
 var
   {$IFNDEF HAS_FMX}
@@ -322,7 +327,7 @@ begin
     JSONTela.Free;
   end;
 end;
-
+{$ENDIF}
 procedure TSQLiteConfig.UpdateConfig(aJSON: TJSONObject);
 var
   I: integer;

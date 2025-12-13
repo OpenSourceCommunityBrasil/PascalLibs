@@ -1,20 +1,22 @@
 ﻿// Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-// version 1.6
+// version 1.7
 unit DAO.REST;
 
-// comment this line to make this unit handle VCL controls instead of FMX.
+// Comment this directive below to make this unit handle VCL controls instead of FMX.
 {$DEFINE HAS_FMX}
 
 interface
 
 uses
-  {$IFDEF HAS_FMX}
-  FMX.Grid,
-  {$ELSE}
-  Vcl.Grids,
+  {$IFNDEF CONSOLE}
+    {$IFDEF HAS_FMX}
+    FMX.Grid,
+    {$ELSE}
+    Vcl.Grids,
+    {$ENDIF}
   {$ENDIF}
-  Classes, SysUtils, System.JSON, Math, System.RegularExpressions,
+  Classes, SysUtils, System.JSON, System.Math, System.RegularExpressions,
   REST.Client, REST.Types, REST.Response.Adapter, REST.Authenticator.Basic,
   Data.DB, Data.DBJson;
 
@@ -26,7 +28,7 @@ type
     FBasicAuth: THTTPBasicAuthenticator;
     FConnectTimeout: integer;
     FContentType: string;
-    FGrid: TStringGrid;
+    {$IFNDEF CONSOLE}FGrid: TStringGrid;{$ENDIF}
     FInternalDataSets: array of TDataSet;
     FInternalJSONParts: array of string;
     FMemTable: TDataSet;
@@ -46,7 +48,9 @@ type
     procedure SetBaseURL(const Value: string);
     procedure SetUserAgent(const Value: string);
     procedure doRequest;
+    {$IFNDEF CONSOLE}
     procedure doFillGrid;
+    {$ENDIF}
     procedure doProcessPart;
     procedure GetResponseStream;
     procedure setRootElement(const Value: string);
@@ -72,8 +76,10 @@ type
     procedure BasicAuth(AUserName: string; APassword: string);
     function Clear: TDAOClientREST;
     function ContentType(AValue: string): TDAOClientREST;
+    {$IFNDEF CONSOLE}
     function Grid(AGrid: TStringGrid): TDAOClientREST; overload;
     function Grid: TStringGrid; overload;
+    {$ENDIF}
     function JSONPartToDataSet(AJSONPart: string; ADataSet: TDataSet): TDAOClientREST; overload;
     function MemTable(AMemTable: TDataSet): TDAOClientREST;
     function Resource(AEndpoint: string): TDAOClientREST;
@@ -292,6 +298,7 @@ begin
   inherited;
 end;
 
+{$IFNDEF CONSOLE}
 procedure TDAOClientREST.doFillGrid;
 var
   I, J: integer;
@@ -332,6 +339,7 @@ begin
   end;
   {$ENDIF}
 end;
+{$ENDIF}
 
 procedure TDAOClientREST.doProcessPart;
 var
@@ -390,8 +398,10 @@ begin
       FMemTable.Filter := '';
       FMemTable.Filtered := False;
     end;
+    {$IFNDEF CONSOLE}
     if assigned(FGrid) and isJSON then
       doFillGrid;
+    {$ENDIF}
   except
     on E: Exception do
     begin
@@ -422,11 +432,6 @@ begin
   end;
 end;
 
-function TDAOClientREST.Grid: TStringGrid;
-begin
-  Result := FGrid;
-end;
-
 function TDAOClientREST.JSONPartToDataSet(AJSONPart: string; ADataSet: TDataSet): TDAOClientREST;
 begin
   Result := Self;
@@ -442,11 +447,18 @@ begin
   FInternalDataSets[High(FInternalDataSets)] := ADataSet;
 end;
 
+{$IFNDEF CONSOLE}
+function TDAOClientREST.Grid: TStringGrid;
+begin
+  Result := FGrid;
+end;
+
 function TDAOClientREST.Grid(AGrid: TStringGrid): TDAOClientREST;
 begin
   Result := Self;
   FGrid := AGrid;
 end;
+{$ENDIF}
 
 function TDAOClientREST.MemTable(AMemTable: TDataSet): TDAOClientREST;
 begin
