@@ -1,6 +1,6 @@
 ﻿// Maiores Informações
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-// version 1.9
+// version 1.10
 unit FMXFormat;
 
 interface
@@ -11,12 +11,19 @@ uses
   RegularExpressions;
 
 const
-  csNumbers = ['0' .. '9'];
-  csIntegers = ['0' .. '9', '-'];
+  csAlphaNum = ['a' .. 'z', 'A' .. 'Z', '0' .. '9'];
   csCharacters = ['a' .. 'z', 'A' .. 'Z'];
   csCurrencyDigits = ['0' .. '9', '-', ',', '.'];
   csFormatIdentifier = ['#', 'L', 'l', '9', 'A'];
-  csAlphaNum = ['a' .. 'z', 'A' .. 'Z', '0' .. '9'];
+  csIntegers = ['0' .. '9', '-'];
+  csNumbers = ['0' .. '9'];
+  csRegularCharacters: array [0 .. 51] of string = ('a', 'a', 'a', 'a', 'a', 'e', 'e',
+    'e', 'e', 'i', 'i', 'i', 'i', 'o', 'o', 'o', 'o', 'o', 'u', 'u', 'u', 'u', 'c', 'n',
+    'y', 'y', 'A', 'A', 'A', 'A', 'A', 'E', 'E', 'E', 'E', 'I', 'I', 'I', 'I', 'O', 'O',
+    'O', 'O', 'O', 'U', 'U', 'U', 'U', 'C', 'N', 'Y', 'Y');
+  csShortNumbers: array of string = ['', 'K', 'M', 'B', 'T', 'Qd', 'Qu', 'Sx', 'Se', 'O',
+    'N', 'D'];
+  csShortBits: array of string = ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y', 'R', 'Q'];
   csSymbols = ['\', '/', '-', '=', '+', '*', ',', '.', ';', ':', '|', '[', ']', '{', '}',
     '(', ')', '$', '%', '@', '#', '&', '!', '?', 'ª', 'º', '°', '₢', '£', '¢', '¬',
     '¨', '§'];
@@ -24,24 +31,20 @@ const
     'ê', 'ë', 'í', 'ì', 'ï', 'î', 'ó', 'ò', 'õ', 'ô', 'ö', 'ú', 'ù', 'ü', 'û', 'ç', 'ñ',
     'ý', 'ÿ', 'Á', 'À', 'Ã', 'Â', 'Ä', 'É', 'È', 'Ê', 'Ë', 'Í', 'Ì', 'Ï', 'Î', 'Ó', 'Ò',
     'Õ', 'Ô', 'Ö', 'Ú', 'Ù', 'Ü', 'Û', 'Ç', 'Ñ', 'Ý', 'Ÿ');
-  csRegularCharacters: array [0 .. 51] of string = ('a', 'a', 'a', 'a', 'a', 'e', 'e',
-    'e', 'e', 'i', 'i', 'i', 'i', 'o', 'o', 'o', 'o', 'o', 'u', 'u', 'u', 'u', 'c', 'n',
-    'y', 'y', 'A', 'A', 'A', 'A', 'A', 'E', 'E', 'E', 'E', 'I', 'I', 'I', 'I', 'O', 'O',
-    'O', 'O', 'O', 'U', 'U', 'U', 'U', 'C', 'N', 'Y', 'Y');
-  regexDMA_MDA = '^\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}$';
   regexAMD = '^\d{4}/\d{2}/\d{2} \d{2}:\d{2}:\d{2}$';
-  regexDMA_MDAData = '^\d{2}/\d{2}/\d{4}$';
   regexAMDData = '^\d{4}/\d{2}/\d{2}$';
+  regexDMA_MDA = '^\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}$';
+  regexDMA_MDAData = '^\d{2}/\d{2}/\d{4}$';
 
 type
   TFormato = (None, &Date, Bits, CEP, CEST, CFOP, CNH, CNPJ, CNPJorCPF, CPF, CREA, CRM,
     Dinheiro, Hora, HoraCurta, InscricaoEstadual, NCM, OAB, Personalizado, Peso,
     Porcentagem, Telefone, TituloEleitor, Valor, VeiculoMercosul, VeiculoTradicional);
   TTipoFormato = (tfNenhum, tfBits, tfCartao, tfCEP, tfCEST, tfCFOP, tfCNH, tfCNPJ, tfCPF,
-    tfCPFCNPJ, tfCREA, tfCRM, tfData, tfDataHora, tfDinheiro, tfHora, tfHoraCurta,
-    tfInscricaoEstadual, tfNCM, tfOAB, tfPersonalizado, tfPeso, tfPorcentagem, tfPressao,
-    tfTelefone, tfTemperatura, tfTituloEleitor, tfValor, tfVeiculoMercosul,
-    tfVeiculoTradicional);
+    tfCPFCNPJ, tfCREA, tfCRM, tfData, tfDataHora, tfDinheiro, tfHora,
+    tfHoraCurta, tfInscricaoEstadual, tfNCM, tfOAB, tfPersonalizado, tfPeso,
+    tfPorcentagem, tfPressao, tfTelefone, tfTemperatura, tfTituloEleitor, tfValor,
+    tfVeiculoMercosul, tfVeiculoTradicional);
 
   TUF = (AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MG, MT, MS, PA, PB, PE, PI, PR, RJ, RN,
     RO, RR, RS, SC, SE, SP, &TO);
@@ -49,12 +52,14 @@ type
 
   TFormatHelper = class
   private
+    function EncurtadorNumero(aStr: string; aUnidadeMedida: string;
+      aDecimais: integer = 2; aOffset: integer = 0; aBinario: boolean = false): string;
     function FormataBits(aStr: string): string;
     function FormataCRM(aStr: integer; UF: TUF): string;
     function FormataData(aStr: string): string;
+    function FormataDataHora(aStr, aFormato: string): string;
     function FormataDinheiro(aStr: string; aPrecisao: integer = 2): string;
     function FormataHora(aStr: string): string;
-    function FormataDataHora(aStr, aFormato: string): string;
     function FormataHoraCurta(aStr: string): string;
     function FormataIE(aCod: string; UF: TUF): string;
     function FormataOAB(aStr: integer; UF: TUF): string;
@@ -65,6 +70,7 @@ type
     function AlfaNumerico(aStr: string): string;
     function Decimal(aStr: string): string; overload;
     function Decimal(aStr: string; aPrecisao: integer): double; overload;
+    function FormataEnergia(aStr: string; aPrecisao: integer = 2; aOffset: integer = 0): string;
     function Formatar(Formato: TFormato; Texto: string): string; overload;
       deprecated
       'essa funcao vai ser removida, substitua o tipo TFormato por TTipoFormato';
@@ -200,8 +206,8 @@ begin
       Result := tfVeiculoMercosul;
     VeiculoTradicional:
       Result := tfVeiculoTradicional;
-    else
-      Result := tfNenhum;
+  else
+    Result := tfNenhum;
   end;
 end;
 
@@ -260,50 +266,59 @@ begin
 end;
 
 /// <returns>
-/// Formata o texto para bits de forma reduzida em 2 casas decimais
+/// Formata o texto de entrada para um número curto, K, M, B, T, etc...
+/// aBinary é true se for usar os termos binários K, M, G, T, P, H, Q...
+/// caso contrário, usa os termos decimais K, M, B, T, Qd, Qu, S, etc...
 /// </returns>
-function TFormatHelper.FormataBits(aStr: string): string;
+function TFormatHelper.EncurtadorNumero(aStr, aUnidadeMedida: string;
+  aDecimais, aOffset: integer; aBinario: boolean): string;
 var
   inputbyte: Extended;
   datasize: integer;
-
-const
-  kbsize = 1024;
+  ksize: integer;
+  subval: string;
 
 begin
+  if aBinario then
+  begin
+    ksize := 1024;
+    subval := 'B';
+  end
+  else
+  begin
+    ksize := 1000;
+    subval := aUnidadeMedida;
+  end;
+
   if not aStr.IsEmpty then
     try
       datasize := 0;
-      inputbyte := StrToUInt(aStr);
-      while inputbyte > kbsize do
+      inputbyte := StrToUInt(Decimal(aStr));
+      while inputbyte > ksize do
       begin
-        inputbyte := inputbyte / kbsize;
+        inputbyte := inputbyte / ksize;
         inc(datasize);
       end;
-      case datasize of
-        0:
-          Result := Format('%.2f Bytes', [inputbyte]);
-        1:
-          Result := Format('%.2f KB', [inputbyte]);
-        2:
-          Result := Format('%.2f MB', [inputbyte]);
-        3:
-          Result := Format('%.2f GB', [inputbyte]);
-        4:
-          Result := Format('%.2f TB', [inputbyte]);
-        5:
-          Result := Format('%.2f PB', [inputbyte]);
-        6:
-          Result := Format('%.2f EB', [inputbyte]);
-        // 7: Format('%.2f ZB', [inputbyte]);
-        // 8: Format('%.2f YB', [inputbyte]);
-        // 9: Format('%.2f RB', [inputbyte]);
-        // 10: Format('%.2f QB', [inputbyte]);
-      end;
+
+      if aBinario then
+        Result := Format('%.' + aDecimais.ToString + 'f %s%s',
+          [inputbyte, csShortBits[datasize + aOffset], aUnidadeMedida])
+      else
+        Result := Format('%.' + aDecimais.ToString + 'f %s%s',
+          [inputbyte, csShortNumbers[datasize + aOffset], aUnidadeMedida]);
     except
-      Result := '0 Bytes';
+      Result := Format('0 %s', [aUnidadeMedida]);
     end;
 end;
+
+/// <returns>
+/// Função depreciada, utilize EncurtadorNumero!
+/// Formata o texto para bits de forma reduzida em 2 casas decimais
+/// </returns>
+function TFormatHelper.FormataBits(aStr: string): string;
+begin
+  Result := EncurtadorNumero(aStr, 'B', 2, 0, true);
+end;  
 
 /// <returns>
 /// Formata o texto para código do conselho regional de medicina, no padrão
@@ -427,6 +442,15 @@ begin
   except
     Result := Format('%.2m', [0]);
   end;
+end;
+
+/// <returns>
+/// Formata o texto para valores de energia considerando Watt como menor unidade de medida
+/// </returns>
+function TFormatHelper.FormataEnergia(aStr: string; aPrecisao, aOffset: integer): string;
+begin
+  aStr := Round(Decimal(aStr, 0)).ToString;
+  Result := EncurtadorNumero(aStr, 'w', aPrecisao, aOffset);
 end;
 
 /// <returns>
@@ -591,8 +615,7 @@ begin
       Texto := AlfaNumerico(Texto);
 
     tfBits:
-      // raise Exception.Create('Recurso em implementação');
-      Texto := FormataBits(Decimal(Texto));
+      Texto := EncurtadorNumero(Texto, 'B', 2, 0, true);
 
     tfCartao:
       Texto := Mask('9999 9999 9999 9999', SomenteNumero(Texto));
@@ -808,6 +831,9 @@ begin
     Result := Copy(aStr, 1, aDigitos);
 end;
 
+/// <returns>
+/// Devolve o texto sem acentuação mantendo os outros caracteres.
+/// </returns>  
 function TFormatHelper.RemoveAcentos(aStr: string): string;
 var
   I: integer;
