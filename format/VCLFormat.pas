@@ -826,7 +826,7 @@ begin
       Peso := 2;
       for I := 12 downto 1 do
       begin
-        soma := soma + (strtoint(aCPNJ[I]) * Peso);
+        soma := soma + ((ord(aCPNJ[i]) - 48) * peso);
         inc(Peso);
         if (Peso = 10) then
           Peso := 2;
@@ -842,7 +842,7 @@ begin
       Peso := 2;
       for I := 13 downto 1 do
       begin
-        soma := soma + (strtoint(aCPNJ[I]) * Peso);
+        soma := soma + ((ord(aCPNJ[i]) - 48) * peso);
         inc(Peso);
         if (Peso = 10) then
           Peso := 2;
