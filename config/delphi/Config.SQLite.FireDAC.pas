@@ -6,7 +6,7 @@ unit Config.SQLite.FireDAC;
 interface
 
 // Comment this directive below to make this unit handle VCL controls instead of FMX.
-{$DEFINE HAS_FMX}
+{ $DEFINE HAS_FMX}
 
 uses
   System.JSON, System.SysUtils, System.Generics.Collections, System.Classes,
