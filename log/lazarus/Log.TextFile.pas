@@ -1,181 +1,134 @@
-// Maiores Informações
+// Maiores InformaÃ§Ãµes
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-// version 1.0
+// version 1.1
 unit Log.TextFile;
 
-{$mode objfpc}{$H+}
+{$DEFINE IOUtils}
 
 interface
 
 uses
-  SysUtils, Classes, syncobjs;
+  SysUtils, SyncObjs, DateUtils;
 
 type
+  TLogLevel = (llCritical, llError, llWarning, llInfo, llVerbose, llDebug, llNone);
 
-  { TInfoLog }
-
-  TInfoLog = class
+  TLog = class
   private
+    FInternalDate: TDateTime;
     FFileName: string;
-    FSection: string;
-    FValue: string;
+    FDefaultFileName: string;
+    FCriticalSession: TCriticalSection;
+    FDefaultLogLevel: TLogLevel;
+    procedure SetFileName(const Value: string);
+    function LevelFromIdentifier(AIdentifier: TLogLevel): string;
   public
-    function WriteLog : boolean;
-  published
-    property FileName: string read FFileName write FFileName;
-    property Section: string  read FSection write FSection;
-    property Value: string  read FValue write FValue;
-  end;
-
-  { TLog }
-
-  TLog = class(TThread)
-  private
-    FInfo : TList;
-    FCritical : TCriticalSection;
-    FEvent : TSimpleEvent;
-  protected
-    procedure Execute; override;
-    procedure Clear;
-  public
-    constructor Create;
+    constructor Create(AFileName: string = 'log.txt');
     destructor Destroy; override;
+    procedure Log(ALevel: TLogLevel; AMessage: string); overload;
+    procedure Log(ALevel: TLogLevel; AMessageFmt: string; AArgs: array of const);
+      overload;
 
-    procedure Terminar;
-
-    procedure AddLog(AInfo : TInfoLog);
-
-    class procedure Log(ASection, AValue: string; AFileName: string = 'log.txt');
+    property FileName: string read FFileName write SetFileName;
+    property DefaultLoggingLevel: TLogLevel read FDefaultLogLevel write FDefaultLogLevel;
   end;
 
 implementation
 
-var
-  vLogger : TLog;
+{$IFDEF IOUtils}
+uses
+  System.IOUtils;
+{$ENDIF}
 
-{ TInfoLog }
+  { TLog }
 
-function TInfoLog.WriteLog: boolean;
-var
-  vLogFile: Text;
-  vLogData: String;
+constructor TLog.Create(AFileName: string);
 begin
-  vLogData := FormatDateTime('dd/mm/yyyy hh:nn:ss', Now) + ' | ' +
-              FSection + ' | ' + FValue;
-
-  Result := False;
-  try
-    AssignFile(vLogFile, FFileName);
-    try
-      if FileExists(FFileName) then
-        Append(vLogFile)
-      else
-        Rewrite(vLogFile);
-
-      Writeln(vLogFile, vLogData);
-      Result := True;
-    finally
-      CloseFile(vLogFile);
-    end;
-  except
-    Result := False;
-  end;
-end;
-
-{ TLog }
-
-constructor TLog.Create;
-begin
-  FreeOnTerminate := True;
-  FInfo := TList.Create;
-  FCritical := TCriticalSection.Create;
-  FEvent := TSimpleEvent.Create;
-
-  inherited Create(False);
+  FInternalDate := now;
+  SetFileName(AFileName);
+  FCriticalSession := TCriticalSection.Create;
+  DefaultLoggingLevel := llInfo;
 end;
 
 destructor TLog.Destroy;
 begin
-  Clear;
-  FreeAndNil(FInfo);
-  FreeAndNil(FCritical);
-  FreeAndNil(FEvent);
-  inherited Destroy;
-end;
-
-procedure TLog.Terminar;
-begin
-  Terminate;
-  FEvent.SetEvent;
-end;
-
-procedure TLog.AddLog(AInfo: TInfoLog);
-begin
-  FCritical.Enter;
-  FInfo.Add(AInfo);
-  FCritical.Leave;
-
-  FEvent.SetEvent;
-end;
-
-procedure TLog.Execute;
-var
-  vInfo : TInfoLog;
-begin
-  while not Terminated do
+  if Assigned(FCriticalSession) then
   begin
-    FEvent.WaitFor(INFINITE);
+    FCriticalSession.Leave;  // Ensure we're not holding the lock
+    FCriticalSession.Free;
+    FCriticalSession := nil;
+  end;
+  inherited;
+end;
 
-    if FInfo.Count > 0 then
-    begin
-      FCritical.Enter;
-      vInfo := TInfoLog(FInfo.Items[0]);
-      if vInfo.WriteLog then
+function TLog.LevelFromIdentifier(AIdentifier: TLogLevel): string;
+begin
+  case AIdentifier of
+    llCritical: Result := '[CRITICAL]';
+    llDebug   : Result := '[   DEBUG]';
+    llError   : Result := '[   ERROR]';
+    llInfo    : Result := '[    INFO]';
+    llVerbose : Result := '[ VERBOSE]';
+    llWarning : Result := '[ WARNING]';
+  end;
+end;
+
+procedure TLog.Log(ALevel: TLogLevel; AMessageFmt: string; AArgs: array of const);
+begin
+  Log(ALevel, Format(AMessageFmt, AArgs));
+end;
+
+procedure TLog.Log(ALevel: TLogLevel; AMessage: string);
+var
+  LogFile: Text;
+begin
+  if ALevel <= FDefaultLogLevel then
+  begin
+    FCriticalSession.Enter;
+    try
+      if DaysBetween(now, FInternalDate) > 0 then
       begin
-        FreeAndNil(vInfo);
-        FInfo.Delete(0);
+        FInternalDate := now;
+        SetFileName(FDefaultFileName);
       end;
-      FCritical.Leave;
-    end
-    else
-    begin
-      FEvent.ResetEvent;
+
+      AssignFile(LogFile, FFileName);
+      try
+        if FileExists(FFileName) then
+          Append(LogFile)
+        else
+        begin
+          ForceDirectories(ExtractFileDir(FFileName));
+          Rewrite(LogFile);
+        end;
+
+        Writeln(LogFile, Format('%s %s %s',
+          [FormatDateTime('dd/mm/yyyy hh:nn:ss', Now), LevelFromIdentifier(ALevel),
+          AMessage]));
+      finally
+        CloseFile(LogFile);
+      end;
+    except
     end;
+    FCriticalSession.Leave;
   end;
 end;
 
-procedure TLog.Clear;
+procedure TLog.SetFileName(const Value: string);
 var
-  vInfo : TInfoLog;
+  temp: string;
 begin
-  while FInfo.Count > 0 do
-  begin
-    vInfo := TInfoLog(FInfo.Items[FInfo.Count - 1]);
-    FreeAndNil(vInfo);
-    FInfo.Delete(FInfo.Count - 1);
-  end;
+  FDefaultFileName := Value;
+  temp := ExtractFileName(Value);
+  {$IFDEF IOUtils}
+  FFileName := Format('%s%s%s', [Copy(temp, 1, pos('.', temp) - 1),
+    FormatDateTime('yyyymmdd', FInternalDate), ExtractFileExt(Value)]);
+  FFileName := TPath.Combine(ExtractFileDir(Value), FFileName);
+  {$ELSE}
+  FFileName := ExtractFileDir(Value) + '\';
+  FFileName := FFileName + Copy(temp, 1, pos('.', temp) - 1) +
+    FormatDateTime('yyyymmdd', FInternalDate) + ExtractFileExt(Value);
+  {$ENDIF}
 end;
-
-class procedure TLog.Log(ASection, AValue: string; AFileName: string);
-var
-  vInfo : TInfoLog;
-begin
-  if vLogger = nil then
-    vLogger := TLog.Create;
-
-  vInfo := TInfoLog.Create;
-  vInfo.Section := ASection;
-  vInfo.Value := AValue;
-  vInfo.FileName := AFileName;
-
-  vLogger.AddLog(vInfo);
-end;
-
-initialization
-  vLogger := nil;
-
-finalization
-  if vLogger <> nil then
-    vLogger.Terminar;
 
 end.

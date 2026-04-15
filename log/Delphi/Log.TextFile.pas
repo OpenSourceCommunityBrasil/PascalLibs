@@ -1,15 +1,17 @@
-// Maiores Informações
+// Maiores InformaÃ§Ãµes
 // https://github.com/OpenSourceCommunityBrasil/PascalLibs/wiki
-// version 1.0
+// version 1.1
 unit Log.TextFile;
+
+{$DEFINE IOUtils}
 
 interface
 
 uses
-  System.SysUtils, System.SyncObjs, System.DateUtils;
+  SysUtils, SyncObjs, DateUtils;
 
 type
-  TLogLevel = (llCritical, llError, llWarning, llInfo, llVerbose, llDebug);
+  TLogLevel = (llCritical, llError, llWarning, llInfo, llVerbose, llDebug, llNone);
 
   TLog = class
   private
@@ -24,7 +26,8 @@ type
     constructor Create(AFileName: string = 'log.txt');
     destructor Destroy; override;
     procedure Log(ALevel: TLogLevel; AMessage: string); overload;
-    procedure Log(ALevel: TLogLevel; AMessageFmt: string; AArgs: array of const); overload;
+    procedure Log(ALevel: TLogLevel; AMessageFmt: string; AArgs: array of const);
+      overload;
 
     property FileName: string read FFileName write SetFileName;
     property DefaultLoggingLevel: TLogLevel read FDefaultLogLevel write FDefaultLogLevel;
@@ -32,7 +35,12 @@ type
 
 implementation
 
-{ TLog }
+{$IFDEF IOUtils}
+uses
+  System.IOUtils;
+{$ENDIF}
+
+  { TLog }
 
 constructor TLog.Create(AFileName: string);
 begin
@@ -44,7 +52,12 @@ end;
 
 destructor TLog.Destroy;
 begin
-  FreeAndNil(FCriticalSession);
+  if Assigned(FCriticalSession) then
+  begin
+    FCriticalSession.Leave;  // Ensure we're not holding the lock
+    FCriticalSession.Free;
+    FCriticalSession := nil;
+  end;
   inherited;
 end;
 
@@ -52,16 +65,15 @@ function TLog.LevelFromIdentifier(AIdentifier: TLogLevel): string;
 begin
   case AIdentifier of
     llCritical: Result := '[CRITICAL]';
-    llDebug: Result := '[DEBUG]';
-    llError: Result := '[ERROR]';
-    llInfo: Result := '[INFO]';
-    llWarning: Result := '[WARNING]';
-    llVerbose: Result := '[VERBOSE]';
+    llDebug   : Result := '[   DEBUG]';
+    llError   : Result := '[   ERROR]';
+    llInfo    : Result := '[    INFO]';
+    llVerbose : Result := '[ VERBOSE]';
+    llWarning : Result := '[ WARNING]';
   end;
 end;
 
-procedure TLog.Log(ALevel: TLogLevel; AMessageFmt: string;
-  AArgs: array of const);
+procedure TLog.Log(ALevel: TLogLevel; AMessageFmt: string; AArgs: array of const);
 begin
   Log(ALevel, Format(AMessageFmt, AArgs));
 end;
@@ -90,7 +102,9 @@ begin
           Rewrite(LogFile);
         end;
 
-        Writeln(LogFile, Format('%s %s %s', [FormatDateTime('dd/mm/yyyy hh:nn:ss', Now), LevelFromIdentifier(ALevel), AMessage]));
+        Writeln(LogFile, Format('%s %s %s',
+          [FormatDateTime('dd/mm/yyyy hh:nn:ss', Now), LevelFromIdentifier(ALevel),
+          AMessage]));
       finally
         CloseFile(LogFile);
       end;
@@ -106,9 +120,15 @@ var
 begin
   FDefaultFileName := Value;
   temp := ExtractFileName(Value);
+  {$IFDEF IOUtils}
+  FFileName := Format('%s%s%s', [Copy(temp, 1, pos('.', temp) - 1),
+    FormatDateTime('yyyymmdd', FInternalDate), ExtractFileExt(Value)]);
+  FFileName := TPath.Combine(ExtractFileDir(Value), FFileName);
+  {$ELSE}
   FFileName := ExtractFileDir(Value) + '\';
-  FFileName := FFileName + Copy(temp, 1, pos('.', temp)-1)
-    + FormatDateTime('yyyymmdd', FInternalDate) + ExtractFileExt(Value);
+  FFileName := FFileName + Copy(temp, 1, pos('.', temp) - 1) +
+    FormatDateTime('yyyymmdd', FInternalDate) + ExtractFileExt(Value);
+  {$ENDIF}
 end;
 
 end.
